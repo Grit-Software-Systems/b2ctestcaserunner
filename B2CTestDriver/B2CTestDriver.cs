@@ -1,13 +1,14 @@
+using LoadTest.models;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
-using OpenQA.Selenium.Support.UI;
 using OpenQA.Selenium.Support.Extensions;
+using OpenQA.Selenium.Support.UI;
 using System;
+using System.Collections.Generic;
 using System.IO;
-using LoadTest.models;
-using Newtonsoft.Json;
 
 namespace B2CPortalTest
 {
@@ -41,10 +42,14 @@ namespace B2CPortalTest
             System.Diagnostics.Debug.WriteLine("Get OTP Email");
         }
 
+        internal static void GetEmailOTP(string email)
+        {
+            System.Diagnostics.Debug.WriteLine("Get OTP Email");
+        }
+
         [OneTimeSetUp]
         public void SetUp()
         {
-            Configuration = LoadJSON();
             //Below code is to get the drivers folder path dynamically.
 
             //You can also specify chromedriver.exe path dircly ex: C:/MyProject/Project/drivers
@@ -69,31 +74,101 @@ namespace B2CPortalTest
             }
         }
 
-        [Test, Order(1)]
-        public void NavigateToSignIn()
+        private static IEnumerable<List<Page[]>> TestStarter()
         {
-            driver.Navigate().GoToUrl(Configuration.WebPages.SignInPage);
-            try
+            // TestCaseSource runs before OneTimeSetup
+            if (Configuration == null)
+                Configuration = LoadJSON();
+
+            var testSuite = new List<List<Page[]>>();
+            var result = new List<Page[]>();
+
+            foreach (var page in Configuration.Pages)
             {
-                var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(Configuration.TestConfiguration.TimeOut));
-                var signInButton = wait.Until(driver => driver.FindElement(By.Id(Configuration.Pages[0][0].Id)));
+                if (result.Count != 0 && page[0].InputType == "navigation")
+                {
+                    testSuite.Add(result);
+                    result = new List<Page[]>();
+                }
+                    result.Add(page);
             }
-            catch (WebDriverTimeoutException)
+
+            testSuite.Add(result);
+
+            foreach(var test in testSuite)
             {
-                Assert.Fail($"Element with Id {Configuration.Pages[0][0].Id} was not found within the timeout period of {Configuration.TestConfiguration.TimeOut} second(s).");
+                yield return test;
             }
-            Assert.Pass();
         }
 
-        [Test, Order(2)]
-        public void ExecuteFlow()
+        [Test, TestCaseSource(nameof(TestStarter))]
+        public void ExecuteFlow(List<Page[]> test)
         {
 
-            for(int i = 0; i < Configuration.Pages.Length; i++)
+            for (int i = 0; i < test.Count; i++)
             {
-                var pageActions = Configuration.Pages[i];
-                if (i > 0)
+                var pageActions = test[i];
+                int j = 0;
+                if (i == 0)
                 {
+                    // Start of new test, we need to navigate to the test start
+                    if (pageActions[0].InputType == "navigation")
+                    {
+                        // Increment j as we are handling the first element
+                        j++;
+                        driver.Navigate().GoToUrl(pageActions[0].Value);
+                        try
+                        {
+                            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(Configuration.TestConfiguration.TimeOut));
+
+                            // If no ID we just want to check for URL
+                            if (String.IsNullOrEmpty(pageActions[0].Id))
+                                wait.Until(driver => driver.Url.Contains(pageActions[0].Value));
+                            else
+                            {
+                                // Function to check for URL and element with supplied ID
+                                Func<IWebDriver, bool> waitForElement = new Func<IWebDriver, bool>((IWebDriver Web) =>
+                                {
+                                    if (driver.Url.Contains(pageActions[0].Value))
+                                    {
+                                        try
+                                        {
+                                            Web.FindElement(By.Id(pageActions[0].Id));
+                                        }
+                                        catch (NoSuchElementException)
+                                        {
+                                            return false;
+                                        }
+
+                                        return true;
+                                    }
+                                    return false;
+                                });
+
+
+                                wait.Until(waitForElement);
+                            }
+                        }
+                        catch (WebDriverTimeoutException)
+                        {
+                            if (String.IsNullOrEmpty(pageActions[0].Id))
+                            {
+                                Assert.Fail($"URL {pageActions[0].Value} did not load within the {Configuration.TestConfiguration.TimeOut} second time period.");
+                            }
+                            else
+                            {
+                                Assert.Fail($"URL {pageActions[0].Value} did not load a visible element {pageActions[0].Id} within the {Configuration.TestConfiguration.TimeOut} second time period.");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Assert.Fail("Invalid test. There was no navigation to a page to start.");
+                    }
+                }
+                else
+                {
+                    // New page, check that the element we are looking for exists
                     try
                     {
                         var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(Configuration.TestConfiguration.TimeOut));
@@ -104,52 +179,112 @@ namespace B2CPortalTest
                         Assert.Fail($"Next element {pageActions[0].Id} was not completed within the timeout period of {Configuration.TestConfiguration.TimeOut} second(s).");
                     }
                 }
-                for (int j = 0; j < pageActions.Length; j++)
+                for (; j < test[i].Length; j++)
                 {
-                    if(pageActions[j].InputType == "text")
+                    if (pageActions[j].InputType == "text")
                     {
                         driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(pageActions[j].Value);
                     }
                     else if (pageActions[j].InputType == "button")
                     {
-                        driver.ExecuteJavaScript($"document.getElementById('{pageActions[j].Id}').click()");
+                        try
+                        {
+                            driver.ExecuteJavaScript($"document.getElementById('{pageActions[j].Id}').click()");
+                        }
+                        catch (JavaScriptException)
+                        {
+                            Assert.Fail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
+                        }
                     }
-                    else if(pageActions[j].InputType == "dropdown")
+                    else if (pageActions[j].InputType == "dropdown")
                     {
-                        driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').val('{pageActions[j].Value}')");
+                        try
+                        {
+                            driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').val('{pageActions[j].Value}')");
+                        }
+                        catch (JavaScriptException)
+                        {
+                            Assert.Fail($"Dropdown with ID: {pageActions[j].Id} was not visible on the page.");
+                        }
                     }
                     else if (pageActions[j].InputType == "checkbox")
                     {
-                        if(pageActions[j].Value == "true")
-                            driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', true)");
-                        else
-                            driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', false)");
+                        try
+                        {
+                            if (pageActions[j].Value == "true")
+                                driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', true)");
+                            else
+                                driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', false)");
+                        }
+                        catch (JavaScriptException)
+                        {
+                            Assert.Fail($"Checkbox with ID: {pageActions[j].Id} was not visible on the page.");
+                        }
                     }
-                    else if (pageActions[j].InputType.Contains("Fn::")){
+                    else if (pageActions[j].InputType.Contains("Fn::"))
+                    {
                         var fnName = pageActions[j].InputType.Substring(4);
                         switch (fnName)
                         {
                             case "otpEmail":
-                                GetEmailOTP();
+                                if (String.IsNullOrEmpty(pageActions[j].Value))
+                                    GetEmailOTP();
+                                else
+                                    GetEmailOTP(pageActions[j].Value);
                                 break;
+                        }
+                    }
+                    else if (pageActions[j].InputType == "successCheck")
+                    {
+                        try
+                        {
+                            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(Configuration.TestConfiguration.TimeOut));
+
+                            // If no ID we just want to check for URL
+                            if (String.IsNullOrEmpty(pageActions[j].Id))
+                                wait.Until(driver => driver.Url.Contains(pageActions[j].Value));
+                            else
+                            {
+                                // Function to check for URL and element with supplied ID
+                                Func<IWebDriver, bool> waitForElement = new Func<IWebDriver, bool>((IWebDriver Web) =>
+                                {
+                                    if (driver.Url.Contains(pageActions[j].Value))
+                                    {
+                                        try
+                                        {
+                                            Web.FindElement(By.Id(pageActions[j].Id));
+                                        }
+                                        catch (NoSuchElementException)
+                                        {
+                                            return false;
+                                        }
+                                        return true;
+                                    }
+                                    return false;
+                                });
+
+
+                                wait.Until(waitForElement);
+                            }
+                        }
+                        catch (WebDriverTimeoutException)
+                        {
+                            Assert.Fail($"URL {pageActions[j].Value} did not load within the {Configuration.TestConfiguration.TimeOut} second time period.");
+                        }
+
+                        if (String.IsNullOrEmpty(pageActions[j].Id))
+                        {
+                            Assert.Pass($"Successfully landed on page: {pageActions[j].Value} with element possessing ID: {pageActions[j].Id}");
+                        }
+                        else
+                        {
+                            Assert.Pass($"Successfully landed on page: {pageActions[j].Value}");
                         }
                     }
                 }
             }
 
-            bool successPage = false;
-
-            try
-            {
-                var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(Configuration.TestConfiguration.TimeOut));
-                successPage = wait.Until(driver => driver.Url.Contains(Configuration.WebPages.SuccessPage));
-            }
-            catch (WebDriverTimeoutException)
-            {
-                Assert.Fail($"Success page {Configuration.WebPages.SuccessPage} was not landed on within the timeout period of {Configuration.TestConfiguration.TimeOut} second(s).");
-            }
-
-            Assert.IsTrue(successPage);
+            Assert.Fail("My logic sucks or you forgot to terminate the test.");
         }
 
         [OneTimeTearDown]
