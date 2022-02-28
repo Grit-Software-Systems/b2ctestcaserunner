@@ -15,6 +15,9 @@
     <None Remove="appsettings.json" />
     <None Remove="drivers\chromedriver.exe" />
     <None Remove="drivers\geckodriver.exe" />
+    <None Remove="keys.json" />
+    <None Remove="Tests\signIn.json" />
+    <None Remove="Tests\signUp.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +28,15 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="drivers\geckodriver.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="keys.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Tests\signIn.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Tests\signUp.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

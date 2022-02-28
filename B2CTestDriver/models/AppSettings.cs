@@ -1,19 +1,14 @@
 ﻿using Newtonsoft.Json;
-using System.Collections;
-using System.Collections.Generic;
 
-namespace LoadTest.models
+namespace B2CTestDriver.models
 {
     public partial class AppSettings
     {
-        [JsonProperty("WebPages")]
-        public WebPages WebPages { get; set; }
-
         [JsonProperty("TestConfiguration")]
         public TestConfiguration TestConfiguration { get; set; }
 
-        [JsonProperty("Pages")]
-        public Page[][] Pages { get; set; }
+        [JsonProperty("Tests")]
+        public string[] Tests { get; set; }
     }
 
     public partial class Page
@@ -32,17 +27,10 @@ namespace LoadTest.models
     {
         [JsonProperty("Environment")]
         public string Environment { get; set; }
+        [JsonProperty("OTP_Age")]
+        public string OTP_Age { get; set; }
 
         [JsonProperty("TimeOut")]
         public long TimeOut { get; set; }
-    }
-
-    public partial class WebPages
-    {
-        [JsonProperty("SignInPage")]
-        public string SignInPage { get; set; }
-
-        [JsonProperty("SuccessPage")]
-        public string SuccessPage { get; set; }
     }
 }
