@@ -7,6 +7,9 @@ namespace B2CTestDriver.models
         [JsonProperty("TestConfiguration")]
         public TestConfiguration TestConfiguration { get; set; }
 
+        [JsonProperty("AppInsightsInstrumentationKey")]
+        public string appInsightsInstrumentationKey { get; set; }
+
         [JsonProperty("Tests")]
         public string[] Tests { get; set; }
     }

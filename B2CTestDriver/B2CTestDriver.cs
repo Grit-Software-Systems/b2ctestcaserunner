@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Tools;
 
 namespace B2CTestDriver
 {
@@ -21,6 +22,7 @@ namespace B2CTestDriver
         private static AppSettings _configuration;
         private static Dictionary<string, string> _keys;
         private static int _testNumber = 0;
+        private static TelemetryLog telemetryLog;
         internal static AppSettings LoadJSON(string path)
         {
             AppSettings result = new AppSettings();
@@ -57,6 +59,7 @@ namespace B2CTestDriver
             //You can also specify chromedriver.exe path dircly ex: C:/MyProject/Project/drivers
 
             var browserEnv = _configuration.TestConfiguration.Environment;
+            telemetryLog.TrackEvent("information", "browser environment", browserEnv);
 
             // If we ever want to pass driver location as a parameter
             var driverPath = TestContext.CurrentContext.TestDirectory;
@@ -75,6 +78,7 @@ namespace B2CTestDriver
             }
             else
             {
+                telemetryLog.TrackEvent("exception", "browser environment", "Unrecognized Browser Environment!");
                 throw new Exception("Unrecognized Browser Environment!");
             }
         }
@@ -86,6 +90,9 @@ namespace B2CTestDriver
             if (_configuration == null)
                 _configuration = LoadJSON(testPath);
 
+            telemetryLog = new TelemetryLog(_configuration.appInsightsInstrumentationKey);
+            telemetryLog.TrackEvent("B2CTestDriver Started", "Test Environment", _configuration.TestConfiguration.Environment);
+
             var testSuite = new List<List<Page[]>>();
 
             foreach (var test in _configuration.Tests)
@@ -95,11 +102,20 @@ namespace B2CTestDriver
                     var jsonText = r.ReadToEnd();
                     if (String.IsNullOrEmpty(jsonText))
                     {
+                        telemetryLog.LogException("appsettings.json was not present or is empty.");
                         throw new Exception("appsettings.json was not present or is empty.");
                     }
                     else
                     {
-                        testSuite.Add(JsonConvert.DeserializeObject<List<Page[]>>(jsonText));
+                        try
+                        {
+                            testSuite.Add(JsonConvert.DeserializeObject<List<Page[]>>(jsonText));
+                        }
+                        catch (Exception ex)
+                        {
+                            telemetryLog.TrackEvent("error", "invalid json", jsonText);
+                            Assert.Fail($"invalid json: {jsonText}");
+                        }
                     }
                 }
             }
@@ -113,7 +129,7 @@ namespace B2CTestDriver
         [Test, TestCaseSource(nameof(TestStarter))]
         public async Task ExecuteFlow(List<Page[]> test)
         {
-            TestContext.Write($"Execution of {_configuration.Tests[_testNumber++]}");
+            TestContextWrite($"Execution of {_configuration.Tests[_testNumber++]}");
             for (int i = 0; i < test.Count; i++)
             {
                 var pageActions = test[i];
@@ -125,9 +141,10 @@ namespace B2CTestDriver
                     {
                         // Increment j as we are handling the first element
                         j++;
-                        driver.Navigate().GoToUrl(pageActions[0].Value);
                         try
                         {
+                            driver.Navigate().GoToUrl(pageActions[0].Value);
+
                             var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(_configuration.TestConfiguration.TimeOut));
                             // If no ID we just want to check for URL
                             if (String.IsNullOrEmpty(pageActions[0].Id))
@@ -141,21 +158,25 @@ namespace B2CTestDriver
                         {
                             if (!driver.Url.Contains(pageActions[0].Value))
                             {
-                                Assert.Fail($"Expected URL {pageActions[0].Value}, but current URL is {driver.Url}");
+                                AssertFail($"Expected URL {pageActions[0].Value}, but current URL is {driver.Url}");
                             }
                             else if (String.IsNullOrEmpty(pageActions[0].Id))
                             {
-                                Assert.Fail($"URL {pageActions[0].Id} did not load within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                                AssertFail($"URL {pageActions[0].Id} did not load within the {_configuration.TestConfiguration.TimeOut} second time period.");
                             }
                             else
                             {
-                                Assert.Fail($"URL {pageActions[0].Value} did not load a visible element {pageActions[0].Id} within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                                AssertFail($"URL {pageActions[0].Value} did not load a visible element {pageActions[0].Id} within the {_configuration.TestConfiguration.TimeOut} second time period.");
                             }
+                        }
+                        catch (Exception ex)
+                        {
+                            ExceptionMessage(ex);
                         }
                     }
                     else
                     {
-                        Assert.Fail("Invalid test. There was no navigation to a page to start.");
+                        AssertFail("Invalid test. There was no navigation to a page to start.");
                     }
                 }
                 else
@@ -176,7 +197,11 @@ namespace B2CTestDriver
                     }
                     catch (WebDriverTimeoutException)
                     {
-                        Assert.Fail($"URL {pageActions[0].Value} did not load a visible element {pageActions[0].Id} within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                        AssertFail($"URL {pageActions[0].Value} did not load a visible element {pageActions[0].Id} within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                    }
+                    catch (Exception ex)
+                    {
+                        ExceptionMessage(ex);
                     }
                 }
 
@@ -192,7 +217,11 @@ namespace B2CTestDriver
                         }
                         catch (WebDriverTimeoutException)
                         {
-                            Assert.Fail($"Next element {pageActions[j].Id} was not completed within the timeout period of {_configuration.TestConfiguration.TimeOut} second(s).");
+                            AssertFail($"Next element {pageActions[j].Id} was not completed within the timeout period of {_configuration.TestConfiguration.TimeOut} second(s).");
+                        }
+                        catch (Exception ex)
+                        {
+                            ExceptionMessage(ex);
                         }
                     }
                     if (pageActions[j].InputType == "text")
@@ -208,7 +237,11 @@ namespace B2CTestDriver
                         }
                         catch (JavaScriptException)
                         {
-                            Assert.Fail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
+                            AssertFail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
+                        }
+                        catch (Exception ex)
+                        {
+                            ExceptionMessage(ex);
                         }
                     }
                     else if (pageActions[j].InputType == "link")
@@ -219,7 +252,7 @@ namespace B2CTestDriver
                         }
                         catch (JavaScriptException)
                         {
-                            Assert.Fail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
+                            AssertFail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
                         }
                     }
                     else if (pageActions[j].InputType == "dropdown")
@@ -230,7 +263,7 @@ namespace B2CTestDriver
                         }
                         catch (JavaScriptException)
                         {
-                            Assert.Fail($"Dropdown with ID: {pageActions[j].Id} was not visible on the page.");
+                            AssertFail($"Dropdown with ID: {pageActions[j].Id} was not visible on the page.");
                         }
                     }
                     else if (pageActions[j].InputType == "checkbox")
@@ -244,7 +277,7 @@ namespace B2CTestDriver
                         }
                         catch (JavaScriptException)
                         {
-                            Assert.Fail($"Checkbox with ID: {pageActions[j].Id} was not visible on the page.");
+                            AssertFail($"Checkbox with ID: {pageActions[j].Id} was not visible on the page.");
                         }
                     }
                     else if (pageActions[j].InputType.Contains("Fn::"))
@@ -260,7 +293,7 @@ namespace B2CTestDriver
                                 }
                                 catch (WebDriverTimeoutException)
                                 {
-                                    Assert.Fail($"Next element {pageActions[0].Id} was not completed within the timeout period of {_configuration.TestConfiguration.TimeOut} second(s).");
+                                    AssertFail($"Next element {pageActions[0].Id} was not completed within the timeout period of {_configuration.TestConfiguration.TimeOut} second(s).");
                                 }
                                 var otpCode = await B2CMethods.GetEmailOTP(
                                     driver.FindElement(By.Id(pageActions[j].Id)).GetAttribute("value"),
@@ -270,7 +303,7 @@ namespace B2CTestDriver
                                 break;
                             case "newRandomUser":
                                 var newRandomUser = B2CMethods.NewRandomUser(pageActions[j].Value);
-                                TestContext.Write($"New user ID: {newRandomUser}");
+                                TestContextWrite($"New user ID: {newRandomUser}");
                                 driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(newRandomUser);
                                 break;
                         }
@@ -290,27 +323,56 @@ namespace B2CTestDriver
                         }
                         catch (WebDriverTimeoutException)
                         {
-                            Assert.Fail($"URL {pageActions[j].Value} did not load within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                            AssertFail($"URL {pageActions[j].Value} did not load within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                        }
+                        catch (Exception ex)
+                        {
+                            ExceptionMessage(ex);
                         }
 
                         if (String.IsNullOrEmpty(pageActions[j].Id))
                         {
-                            Assert.Pass($"Successfully landed on page: {pageActions[j].Value}");
+                            AssertPass($"Successfully landed on page: {pageActions[j].Value}");
                         }
                         else
                         {
-                            Assert.Pass($"Successfully landed on page: {pageActions[j].Value} with element possessing ID: {pageActions[j].Id}");
+                            AssertPass($"Successfully landed on page: {pageActions[j].Value} with element possessing ID: {pageActions[j].Id}");
                         }
                     }
                 }
             }
 
-            Assert.Fail("My logic sucks or you forgot to terminate the test.");
+            AssertFail("Test case logic failure or you forgot to terminate the test.");
+        }
+
+        public void AssertFail(string message)
+        {
+            telemetryLog.TrackEvent("assert fail", "assertion", message);
+            Assert.Fail(message);
+        }
+        public void AssertPass(string message)
+        {
+            telemetryLog.TrackEvent("assert pass", "assertion", message);
+            Assert.Pass(message);
+        }
+
+        public void ExceptionMessage(Exception ex)
+        {
+            telemetryLog.TrackEvent("exception", "exception message", ex.ToString());
+        }
+
+        public void TestContextWrite(string message)
+        {
+            telemetryLog.TrackEvent("information", "message", message);
+            TestContext.Write(message);
         }
 
         [OneTimeTearDown]
         public void TearDown()
         {
+            telemetryLog.TrackEvent("B2CTestDriver finished", new Dictionary<string, string>());
+            telemetryLog.Flush();
+
             driver.Quit();
         }
     }
