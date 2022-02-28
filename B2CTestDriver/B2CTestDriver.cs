@@ -20,10 +20,11 @@ namespace B2CTestDriver
         IWebDriver driver;
         private static AppSettings _configuration;
         private static Dictionary<string, string> _keys;
-        internal static AppSettings LoadJSON()
+        private static int _testNumber = 0;
+        internal static AppSettings LoadJSON(string path)
         {
             AppSettings result = new AppSettings();
-            using (StreamReader r = new StreamReader("appsettings.json"))
+            using (StreamReader r = new StreamReader(path + @"\appsettings.json"))
             {
                 var jsonText = r.ReadToEnd();
                 if (String.IsNullOrEmpty(jsonText))
@@ -42,7 +43,8 @@ namespace B2CTestDriver
         [OneTimeSetUp]
         public void SetUp()
         {
-            using (StreamReader r = new StreamReader("keys.json"))
+            var keysPath = TestContext.CurrentContext.WorkDirectory;
+            using (StreamReader r = new StreamReader(keysPath + @"\keys.json"))
             {
                 var jsonText = r.ReadToEnd();
                 if (!String.IsNullOrEmpty(jsonText))
@@ -56,17 +58,20 @@ namespace B2CTestDriver
 
             var browserEnv = _configuration.TestConfiguration.Environment;
 
+            // If we ever want to pass driver location as a parameter
+            var driverPath = TestContext.CurrentContext.TestDirectory;
+
             if (browserEnv == "Chrome")
             {
                 //Creates the ChomeDriver object, Executes tests on Google Chrome
 
-                driver = new ChromeDriver(@".\drivers\");
+                driver = new ChromeDriver(driverPath + @"\drivers\");
             }
             else if (browserEnv == "Firefox")
             {
                 // Specify Correct location of geckodriver.exe folder path. Ex: C:/Project/drivers
 
-                driver = new FirefoxDriver(@".\drivers\");
+                driver = new FirefoxDriver(driverPath + @"\drivers\");
             }
             else
             {
@@ -76,35 +81,39 @@ namespace B2CTestDriver
 
         private static IEnumerable<List<Page[]>> TestStarter()
         {
+            var testPath = TestContext.CurrentContext.WorkDirectory;
             // TestCaseSource runs before OneTimeSetup
             if (_configuration == null)
-                _configuration = LoadJSON();
+                _configuration = LoadJSON(testPath);
 
             var testSuite = new List<List<Page[]>>();
-            var result = new List<Page[]>();
 
-            foreach (var page in _configuration.Pages)
+            foreach (var test in _configuration.Tests)
             {
-                if (result.Count != 0 && page[0].InputType == "navigation")
+                using (StreamReader r = new StreamReader(testPath + $"\\Tests\\{test}.json"))
                 {
-                    testSuite.Add(result);
-                    result = new List<Page[]>();
+                    var jsonText = r.ReadToEnd();
+                    if (String.IsNullOrEmpty(jsonText))
+                    {
+                        throw new Exception("appsettings.json was not present or is empty.");
+                    }
+                    else
+                    {
+                        testSuite.Add(JsonConvert.DeserializeObject<List<Page[]>>(jsonText));
+                    }
                 }
-                result.Add(page);
             }
 
-            testSuite.Add(result);
-
-            foreach (var test in testSuite)
+            for (int i = 0; i < testSuite.Count; i++)
             {
-                yield return test;
+                yield return testSuite[i];
             }
         }
 
         [Test, TestCaseSource(nameof(TestStarter))]
         public async Task ExecuteFlow(List<Page[]> test)
         {
-
+            TestContext.Write($"Execution of {_configuration.Tests[_testNumber++]}");
             for (int i = 0; i < test.Count; i++)
             {
                 var pageActions = test[i];
@@ -167,7 +176,7 @@ namespace B2CTestDriver
                     }
                     catch (WebDriverTimeoutException)
                     {
-                      Assert.Fail($"URL {pageActions[0].Value} did not load a visible element {pageActions[0].Id} within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                        Assert.Fail($"URL {pageActions[0].Value} did not load a visible element {pageActions[0].Id} within the {_configuration.TestConfiguration.TimeOut} second time period.");
                     }
                 }
 
@@ -186,109 +195,113 @@ namespace B2CTestDriver
                             Assert.Fail($"Next element {pageActions[j].Id} was not completed within the timeout period of {_configuration.TestConfiguration.TimeOut} second(s).");
                         }
                     }
-                        if (pageActions[j].InputType == "text")
+                    if (pageActions[j].InputType == "text")
+                    {
+                        driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(pageActions[j].Value);
+                    }
+                    else if (pageActions[j].InputType == "button")
+                    {
+                        try
                         {
-                            driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(pageActions[j].Value);
+                            var buttonId = pageActions[j].Id;
+                            driver.ExecuteJavaScript($"$('#{buttonId}').trigger('click')");
                         }
-                        else if (pageActions[j].InputType == "button")
+                        catch (JavaScriptException)
                         {
-                            try
-                            {
-                                var buttonId = pageActions[j].Id;
-                                driver.ExecuteJavaScript($"$('#{buttonId}').trigger('click')");
-                            }
-                            catch (JavaScriptException)
-                            {
-                                Assert.Fail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
-                            }
+                            Assert.Fail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
                         }
-                        else if (pageActions[j].InputType == "link")
+                    }
+                    else if (pageActions[j].InputType == "link")
+                    {
+                        try
                         {
-                            try
-                            {
-                                driver.ExecuteJavaScript($"document.getElementById('{pageActions[j].Id}').click()");
-                            }
-                            catch (JavaScriptException)
-                            {
-                                Assert.Fail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
-                            }
+                            driver.ExecuteJavaScript($"document.getElementById('{pageActions[j].Id}').click()");
                         }
-                        else if (pageActions[j].InputType == "dropdown")
+                        catch (JavaScriptException)
                         {
-                            try
-                            {
-                                driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').val('{pageActions[j].Value}')");
-                            }
-                            catch (JavaScriptException)
-                            {
-                                Assert.Fail($"Dropdown with ID: {pageActions[j].Id} was not visible on the page.");
-                            }
+                            Assert.Fail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
                         }
-                        else if (pageActions[j].InputType == "checkbox")
+                    }
+                    else if (pageActions[j].InputType == "dropdown")
+                    {
+                        try
                         {
-                            try
-                            {
-                                if (pageActions[j].Value == "true")
-                                    driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', true)");
-                                else
-                                    driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', false)");
-                            }
-                            catch (JavaScriptException)
-                            {
-                                Assert.Fail($"Checkbox with ID: {pageActions[j].Id} was not visible on the page.");
-                            }
+                            driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').val('{pageActions[j].Value}')");
                         }
-                        else if (pageActions[j].InputType.Contains("Fn::"))
+                        catch (JavaScriptException)
                         {
-                            var fnName = pageActions[j].InputType.Substring(4);
-                            switch (fnName)
-                            {
-                                case "otpEmail":
-                                    try
-                                    {
-                                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(_configuration.TestConfiguration.TimeOut));
-                                        wait.Until(driver => driver.FindElement(By.Id("emailVerificationControl_but_verify_code")).Displayed);
-                                    }
-                                    catch (WebDriverTimeoutException)
-                                    {
-                                        Assert.Fail($"Next element {pageActions[0].Id} was not completed within the timeout period of {_configuration.TestConfiguration.TimeOut} second(s).");
-                                    }
-                                    var otpCode = await B2CMethods.GetEmailOTP(driver.FindElement(By.Id(pageActions[j].Id)).GetAttribute("value"), _keys["otpFunctionAppKey"], _keys["otpFunctionApp"]);
-                                    driver.FindElement(By.Id("verificationCode")).SendKeys(otpCode);
-                                    break;
-                                case "newRandomUser":
-                                    var newRandomUser = B2CMethods.NewRandomUser(pageActions[j].Value);
-                                    driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(newRandomUser);
-                                    break;
-                            }
+                            Assert.Fail($"Dropdown with ID: {pageActions[j].Id} was not visible on the page.");
                         }
-                        else if (pageActions[j].InputType == "successCheck")
+                    }
+                    else if (pageActions[j].InputType == "checkbox")
+                    {
+                        try
                         {
-                            try
-                            {
-                                var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(_configuration.TestConfiguration.TimeOut));
-                                // If no ID we just want to check for URL (preference is to also look for an id)
-                                if (String.IsNullOrEmpty(pageActions[j].Id))
-                                    wait.Until(webDriver => webDriver.Url.Contains(pageActions[j].Value));
-                                else
+                            if (pageActions[j].Value == "true")
+                                driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', true)");
+                            else
+                                driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', false)");
+                        }
+                        catch (JavaScriptException)
+                        {
+                            Assert.Fail($"Checkbox with ID: {pageActions[j].Id} was not visible on the page.");
+                        }
+                    }
+                    else if (pageActions[j].InputType.Contains("Fn::"))
+                    {
+                        var fnName = pageActions[j].InputType.Substring(4);
+                        switch (fnName)
+                        {
+                            case "otpEmail":
+                                try
                                 {
-                                    wait.Until(webDriver => webDriver.Url.Contains(pageActions[j].Value) && webDriver.FindElements(By.Id(pageActions[j].Id)).Count > 0);
+                                    var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(_configuration.TestConfiguration.TimeOut));
+                                    wait.Until(driver => driver.FindElement(By.Id("emailVerificationControl_but_verify_code")).Displayed);
                                 }
-                            }
-                            catch (WebDriverTimeoutException)
-                            {
-                                Assert.Fail($"URL {pageActions[j].Value} did not load within the {_configuration.TestConfiguration.TimeOut} second time period.");
-                            }
-
+                                catch (WebDriverTimeoutException)
+                                {
+                                    Assert.Fail($"Next element {pageActions[0].Id} was not completed within the timeout period of {_configuration.TestConfiguration.TimeOut} second(s).");
+                                }
+                                var otpCode = await B2CMethods.GetEmailOTP(
+                                    driver.FindElement(By.Id(pageActions[j].Id)).GetAttribute("value"),
+                                    _keys["otpFunctionAppKey"], _keys["otpFunctionApp"],
+                                    _configuration.TestConfiguration.OTP_Age);
+                                driver.FindElement(By.Id("verificationCode")).SendKeys(otpCode);
+                                break;
+                            case "newRandomUser":
+                                var newRandomUser = B2CMethods.NewRandomUser(pageActions[j].Value);
+                                TestContext.Write($"New user ID: {newRandomUser}");
+                                driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(newRandomUser);
+                                break;
+                        }
+                    }
+                    else if (pageActions[j].InputType == "successCheck")
+                    {
+                        try
+                        {
+                            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(_configuration.TestConfiguration.TimeOut));
+                            // If no ID we just want to check for URL (preference is to also look for an id)
                             if (String.IsNullOrEmpty(pageActions[j].Id))
-                            {
-                                Assert.Pass($"Successfully landed on page: {pageActions[j].Value}");
-                            }
+                                wait.Until(webDriver => webDriver.Url.Contains(pageActions[j].Value));
                             else
                             {
-                                Assert.Pass($"Successfully landed on page: {pageActions[j].Value} with element possessing ID: {pageActions[j].Id}");
+                                wait.Until(webDriver => webDriver.Url.Contains(pageActions[j].Value) && webDriver.FindElements(By.Id(pageActions[j].Id)).Count > 0);
                             }
                         }
+                        catch (WebDriverTimeoutException)
+                        {
+                            Assert.Fail($"URL {pageActions[j].Value} did not load within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                        }
+
+                        if (String.IsNullOrEmpty(pageActions[j].Id))
+                        {
+                            Assert.Pass($"Successfully landed on page: {pageActions[j].Value}");
+                        }
+                        else
+                        {
+                            Assert.Pass($"Successfully landed on page: {pageActions[j].Value} with element possessing ID: {pageActions[j].Id}");
+                        }
+                    }
                 }
             }
 

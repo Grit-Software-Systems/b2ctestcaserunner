@@ -7,8 +7,8 @@ namespace B2CTestDriver.models
         [JsonProperty("TestConfiguration")]
         public TestConfiguration TestConfiguration { get; set; }
 
-        [JsonProperty("Pages")]
-        public Page[][] Pages { get; set; }
+        [JsonProperty("Tests")]
+        public string[] Tests { get; set; }
     }
 
     public partial class Page
@@ -27,6 +27,8 @@ namespace B2CTestDriver.models
     {
         [JsonProperty("Environment")]
         public string Environment { get; set; }
+        [JsonProperty("OTP_Age")]
+        public string OTP_Age { get; set; }
 
         [JsonProperty("TimeOut")]
         public long TimeOut { get; set; }
