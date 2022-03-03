@@ -2,6 +2,7 @@ using B2CTestDriver.methods;
 using B2CTestDriver.models;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using NUnit.Framework.Internal;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
@@ -23,37 +24,42 @@ namespace B2CTestDriver
         private static Dictionary<string, string> _keys;
         private static int _testNumber = 0;
         private static TelemetryLog telemetryLog;
+        
+        private static bool useBlobStorage = false;
+        private static AzureBlobStorageFrame blobFrame = null;
+
+        const string telemetryMetricPass = "Pass";
+        const string telemetryMetricFail = "Fail";
+
         internal static AppSettings LoadJSON(string path)
         {
-            AppSettings result = new AppSettings();
-            using (StreamReader r = new StreamReader(path + @"\appsettings.json"))
+            var jsonText = ReadFile(path + @"\appsettings.json", false);
+
+            if (String.IsNullOrEmpty(jsonText))
             {
-                var jsonText = r.ReadToEnd();
-                if (String.IsNullOrEmpty(jsonText))
-                {
-                    throw new Exception("appsettings.json was not present or is empty.");
-                }
-                else
-                {
-                    result = JsonConvert.DeserializeObject<AppSettings>(jsonText);
-                }
+                throw new Exception("appsettings.json was not present or is empty.");
             }
 
-            return result;
+            try
+            {
+                return JsonConvert.DeserializeObject<AppSettings>(jsonText);
+            }
+            catch { }
+
+            return new AppSettings();
         }
 
         [OneTimeSetUp]
         public void SetUp()
         {
             var keysPath = TestContext.CurrentContext.WorkDirectory;
-            using (StreamReader r = new StreamReader(keysPath + @"\keys.json"))
+           
+            var jsonText = ReadFile(keysPath + @"\keys.json", useBlobStorage);
+            if (!String.IsNullOrEmpty(jsonText))
             {
-                var jsonText = r.ReadToEnd();
-                if (!String.IsNullOrEmpty(jsonText))
-                {
-                    _keys = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonText);
-                }
+                _keys = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonText);
             }
+
             //Below code is to get the drivers folder path dynamically.
 
             //You can also specify chromedriver.exe path dircly ex: C:/MyProject/Project/drivers
@@ -81,44 +87,56 @@ namespace B2CTestDriver
                 telemetryLog.TrackEvent("exception", "browser environment", "Unrecognized Browser Environment!");
                 throw new Exception("Unrecognized Browser Environment!");
             }
+        
         }
 
         private static IEnumerable<List<Page[]>> TestStarter()
         {
             var testPath = TestContext.CurrentContext.WorkDirectory;
+
             // TestCaseSource runs before OneTimeSetup
             if (_configuration == null)
                 _configuration = LoadJSON(testPath);
 
-            telemetryLog = new TelemetryLog(_configuration.appInsightsInstrumentationKey);
+            // cliff code
+            string instrumentationKey = EnvVar("appInsightsInstrumentationKey");
+            telemetryLog = new TelemetryLog(instrumentationKey);
             telemetryLog.TrackEvent("B2CTestDriver Started", "Test Environment", _configuration.TestConfiguration.Environment);
 
+            string connectionString = EnvVar("blobStorageConnectionString");
+            if(!string.IsNullOrEmpty(connectionString))
+            {
+                //useBlobStorage = true;
+                blobFrame = new AzureBlobStorageFrame(
+                    EnvVar("blobStorageConnectionString"),
+                    EnvVar("blobStorageContainerName"));
+            }
+
+            
             var testSuite = new List<List<Page[]>>();
 
             foreach (var test in _configuration.Tests)
             {
-                using (StreamReader r = new StreamReader(testPath + $"\\Tests\\{test}.json"))
+                var jsonText = ReadFile(testPath + $"\\Tests\\{test}.json", useBlobStorage);
+                if (String.IsNullOrEmpty(jsonText))
                 {
-                    var jsonText = r.ReadToEnd();
-                    if (String.IsNullOrEmpty(jsonText))
+                    telemetryLog.LogException("appsettings.json was not present or is empty.");
+                    throw new Exception("appsettings.json was not present or is empty.");
+                }
+                else
+                {
+                    try
                     {
-                        telemetryLog.LogException("appsettings.json was not present or is empty.");
-                        throw new Exception("appsettings.json was not present or is empty.");
+                        testSuite.Add(JsonConvert.DeserializeObject<List<Page[]>>(jsonText));
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        try
-                        {
-                            testSuite.Add(JsonConvert.DeserializeObject<List<Page[]>>(jsonText));
-                        }
-                        catch (Exception ex)
-                        {
-                            telemetryLog.TrackEvent("error", "invalid json", jsonText);
-                            Assert.Fail($"invalid json: {jsonText}");
-                        }
+                        telemetryLog.TrackEvent("error", "invalid json", jsonText);
+                        Assert.Fail($"invalid json: {jsonText}");
                     }
                 }
             }
+            
 
             for (int i = 0; i < testSuite.Count; i++)
             {
@@ -345,27 +363,57 @@ namespace B2CTestDriver
             AssertFail("Test case logic failure or you forgot to terminate the test.");
         }
 
+
         public void AssertFail(string message)
         {
+            telemetryLog.TrackMetric(telemetryMetricFail, 1);
             telemetryLog.TrackEvent("assert fail", "assertion", message);
             Assert.Fail(message);
         }
+
+
         public void AssertPass(string message)
         {
+            telemetryLog.TrackMetric(telemetryMetricPass, 1);
             telemetryLog.TrackEvent("assert pass", "assertion", message);
             Assert.Pass(message);
         }
 
+        
         public void ExceptionMessage(Exception ex)
         {
+            telemetryLog.TrackMetric(telemetryMetricFail, 1);
             telemetryLog.TrackEvent("exception", "exception message", ex.ToString());
         }
+
 
         public void TestContextWrite(string message)
         {
             telemetryLog.TrackEvent("information", "message", message);
             TestContext.Write(message);
         }
+
+
+        static string ReadFile(string path, bool isBlobFile = false)
+        {
+            string text = "";
+
+            if (isBlobFile)
+            {
+                text = blobFrame.ReadAllText(path);
+            }
+            else
+            {
+                text = File.ReadAllText(path);
+            }
+            return text;
+        }
+
+        static string EnvVar(string key)
+        {
+            return Environment.GetEnvironmentVariable(key);
+        }
+
 
         [OneTimeTearDown]
         public void TearDown()
