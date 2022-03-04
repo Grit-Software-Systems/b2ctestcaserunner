@@ -319,7 +319,7 @@ namespace B2CTestDriver
                 }
             }
 
-            Assert.Fail("My logic sucks or you forgot to terminate the test.");
+            Assert.Fail("Test completion not configured.");
         }
 
         [OneTimeTearDown]
