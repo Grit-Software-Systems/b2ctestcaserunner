@@ -14,6 +14,9 @@ using System.IO;
 using System.Threading.Tasks;
 using Tools;
 using System.Net.Http;
+using System.Collections.Specialized;
+using System.Collections;
+using Newtonsoft.Json.Linq;
 
 namespace B2CTestDriver
 {
@@ -102,7 +105,7 @@ namespace B2CTestDriver
             if (_configuration == null)
                 _configuration = LoadJSON(testPath);
 
-            // cliff code
+            // Init AppInsights.  Or not
             string instrumentationKey = EnvVar("appInsightsInstrumentationKey");
             telemetryLog = new TelemetryLog(instrumentationKey);
             telemetryLog.TrackEvent("\n------------------\nB2CTestDriver Started", "Environment", _configuration.TestConfiguration.Environment);
@@ -115,6 +118,7 @@ namespace B2CTestDriver
                     ? test
                     : Path.Combine(TestContext.CurrentContext.WorkDirectory, "Tests", $"{test}.json");
                 var jsonText = ReadFile(localPath);
+
                 if (String.IsNullOrEmpty(jsonText))
                 {
                     string errorText = $"file {test} is missing or is empty";
@@ -125,7 +129,16 @@ namespace B2CTestDriver
                 {
                     try
                     {
-                        testSuite.Add(JsonConvert.DeserializeObject<List<Page[]>>(jsonText));
+                        var testPages = JsonConvert.DeserializeObject<OrderedDictionary>(jsonText);
+                        List<Page[]> tempList = new List<Page[]>();
+
+                        foreach (DictionaryEntry pageActionList in testPages)
+                        {
+                            var testValues = (pageActionList.Value as JArray).ToObject<Page[]>();
+                            tempList.Add(testValues);
+                        }
+
+                        testSuite.Add(tempList);
                     }
                     catch (Exception ex)
                     {
@@ -134,10 +147,10 @@ namespace B2CTestDriver
                     }
                 }
             }
-            
-            for (int i = 0; i < testSuite.Count; i++)
+
+            foreach (List<Page[]> testFlow in testSuite)
             {
-                yield return testSuite[i];
+                yield return testFlow;
             }
         }
 
@@ -221,9 +234,9 @@ namespace B2CTestDriver
                     }
                 }
 
-                for (; j < test[i].Length; j++)
+                for (; j < pageActions.Length; j++)
                 {
-                    if (!pageActions[j].InputType.StartsWith("Fn::") && pageActions[j].InputType != "successCheck")
+                    if (!pageActions[j].InputType.StartsWith("Fn::") && pageActions[j].InputType != "testCaseComplete")
                     {
                         // Check that the element we are looking for is visible
                         try
@@ -240,16 +253,17 @@ namespace B2CTestDriver
                             ExceptionMessage(ex);
                         }
                     }
-                    if (pageActions[j].InputType == "text")
+                    if (pageActions[j].InputType == "Text")
                     {
                         driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(pageActions[j].Value);
                     }
-                    else if (pageActions[j].InputType == "button")
+                    else if (pageActions[j].InputType == "Button")
                     {
                         try
                         {
                             var buttonId = pageActions[j].Id;
-                            driver.ExecuteJavaScript($"$('#{buttonId}').trigger('click')");
+                            // triggers for both buttons and links
+                            driver.ExecuteJavaScript($"$('#{buttonId}')[0].click()");
                         }
                         catch (JavaScriptException)
                         {
@@ -271,7 +285,7 @@ namespace B2CTestDriver
                             AssertFail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
                         }
                     }
-                    else if (pageActions[j].InputType == "dropdown")
+                    else if (pageActions[j].InputType == "Dropdown")
                     {
                         try
                         {
@@ -282,7 +296,7 @@ namespace B2CTestDriver
                             AssertFail($"Dropdown with ID: {pageActions[j].Id} was not visible on the page.");
                         }
                     }
-                    else if (pageActions[j].InputType == "checkbox")
+                    else if (pageActions[j].InputType == "Checkbox")
                     {
                         try
                         {
@@ -316,6 +330,7 @@ namespace B2CTestDriver
                                     _keys["otpFunctionAppKey"], _keys["otpFunctionApp"],
                                     _configuration.TestConfiguration.OTP_Age);
                                 driver.FindElement(By.Id("verificationCode")).SendKeys(otpCode);
+                                driver.ExecuteJavaScript("$('#verificationCode').trigger('focus')");
                                 break;
                             case "newRandomUser":
                                 var newRandomUser = B2CMethods.NewRandomUser(pageActions[j].Value);
@@ -324,7 +339,7 @@ namespace B2CTestDriver
                                 break;
                         }
                     }
-                    else if (pageActions[j].InputType == "successCheck")
+                    else if (pageActions[j].InputType == "testCaseComplete")
                     {
                         try
                         {
