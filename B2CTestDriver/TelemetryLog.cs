@@ -69,7 +69,19 @@ namespace Tools
         {
             if (logToFile)
             {
-                File.AppendAllText(consoleFile, $"\n{eventId}:{propertyName} {propertyValue}");
+                if (eventId.Contains("assert"))
+                {
+                    File.AppendAllText(consoleFile, $"\nStatus: {eventId.Replace("assert ", "")}");
+                }
+                else if (eventId.Contains("information"))
+                {
+                    string value = propertyName == "browser" ? $"Browser: {propertyValue}" : propertyValue;
+                    File.AppendAllText(consoleFile, $"\n{value}");
+                }
+                else
+                {
+                    File.AppendAllText(consoleFile, $"\n{eventId}: {propertyName} {propertyValue}");
+                }
             }
             else
             {
