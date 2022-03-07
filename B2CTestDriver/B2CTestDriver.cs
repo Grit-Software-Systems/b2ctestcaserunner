@@ -373,7 +373,8 @@ namespace B2CTestDriver
                 }
             }
 
-            AssertFail("Test case logic failure or you forgot to terminate the test.");
+
+            Assert.Fail("Test completion not configured.");
         }
 
 
