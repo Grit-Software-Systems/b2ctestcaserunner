@@ -1,6 +1,7 @@
 using B2CTestDriver.methods;
 using B2CTestDriver.models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
 using OpenQA.Selenium;
@@ -9,14 +10,13 @@ using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Support.Extensions;
 using OpenQA.Selenium.Support.UI;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Threading.Tasks;
-using Tools;
 using System.Net.Http;
-using System.Collections.Specialized;
-using System.Collections;
-using Newtonsoft.Json.Linq;
+using Tools;
 
 namespace B2CTestDriver
 {
@@ -166,7 +166,7 @@ namespace B2CTestDriver
                 if (i == 0)
                 {
                     // Start of new test, we need to navigate to the test start
-                    if (pageActions[0].InputType == "navigation")
+                    if (pageActions[0].InputType == "testCaseStart")
                     {
                         // Increment j as we are handling the first element
                         j++;
