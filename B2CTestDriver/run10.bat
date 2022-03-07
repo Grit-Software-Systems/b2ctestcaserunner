@@ -1,0 +1,10 @@
+call run.bat
+call run.bat
+call run.bat
+call run.bat
+call run.bat
+call run.bat
+call run.bat
+call run.bat
+call run.bat
+call run.bat

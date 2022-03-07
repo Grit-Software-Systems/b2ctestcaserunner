@@ -1,0 +1,1 @@
+dotnet test c:\IDP-Builder\b2ctestcaserunner\B2CTestDriver\bin\Debug\net6.0\B2CTestDriver.dll -- NUnit.WorkDirectory=c:\IDP-Builder\b2ctestcaserunner\B2CTestDriver NUnit.TestOutputXml=c:\IDP-Builder\b2ctestcaserunner\B2CTestDriver\Results
