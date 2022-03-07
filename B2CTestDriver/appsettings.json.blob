@@ -1,8 +1,0 @@
-{
-  "TestConfiguration": {
-    "Environment": "Chrome",
-    "OTP_Age": "10",
-    "TimeOut": "5"
-  },
-  "Tests": [ "https://cliffwtest193ac.blob.core.windows.net/d42aa0ff-2ffb-436d-aa12-903b6adbf2bb/signIn.json" ]
-}

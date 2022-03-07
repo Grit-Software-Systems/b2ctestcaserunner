@@ -1,9 +1,0 @@
-{
-  "TestConfiguration": {
-    "Environment": "Chrome",
-    "OTP_Age": "10",
-    "TimeOut": "5"
-  },
-  "AppInsightsInstrumentationKey": "a3960d55-ce52-4e92-890a-39e35cbf47f0",
-  "Tests": [ "signIn", "otp", "signUp" ]
-}

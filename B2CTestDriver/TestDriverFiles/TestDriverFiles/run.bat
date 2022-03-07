@@ -1,1 +1,0 @@
-dotnet test .\B2CTestDriver.dll -- NUnit.WorkDirectory=C:\Users\AnoojPatel\Desktop\TestDriverRelease NUnit.TestOutputXml=C:\Users\AnoojPatel\Desktop\TestDriverRelease\results

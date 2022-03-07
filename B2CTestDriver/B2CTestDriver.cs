@@ -142,30 +142,13 @@ namespace B2CTestDriver
                     }
                     catch (Exception ex)
                     {
-<<<<<<< HEAD
                         telemetryLog.TrackEvent("error", "invalid json", jsonText);
                         Assert.Fail($"invalid json: {jsonText}");
-=======
-                        var testPages = JsonConvert.DeserializeObject<OrderedDictionary>(jsonText);
-                        List<Page[]> tempList = new List<Page[]>();
-
-                        foreach (DictionaryEntry pageActionList in testPages)
-                        {
-                            var testValues = (pageActionList.Value as JArray).ToObject<Page[]>();
-                            tempList.Add(testValues);
-                        }
-
-                        testSuite.Add(tempList);
->>>>>>> main
                     }
                 }
             }
 
-<<<<<<< HEAD
             foreach (List<Page[]> testFlow in testSuite)
-=======
-            foreach(List<Page[]> testFlow in testSuite)
->>>>>>> main
             {
                 yield return testFlow;
             }
