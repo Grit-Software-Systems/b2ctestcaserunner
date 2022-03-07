@@ -462,7 +462,7 @@ namespace B2CTestDriver
         [OneTimeTearDown]
         public void TearDown()
         {
-            telemetryLog.TrackEvent("B2CTestDriver Completed", "information", $"{DateTime.Now}");
+            telemetryLog.TrackEvent("B2CTestDriver Completed", "time", $"{DateTime.Now}");
             telemetryLog.Flush();
 
             driver.Quit();
