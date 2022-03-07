@@ -370,8 +370,7 @@ namespace B2CTestDriver
                     }
                 }
             }
-
-            AssertFail($"Test {currentTestName}: Test case logic failure or you forgot to terminate the test.");
+            AssertFail("Test completion not configured.");
         }
 
 
