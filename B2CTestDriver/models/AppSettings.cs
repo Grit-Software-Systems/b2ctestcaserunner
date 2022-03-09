@@ -9,6 +9,8 @@ namespace B2CTestDriver.models
 
         [JsonProperty("Tests")]
         public string[] Tests { get; set; }
+        [JsonProperty("DebugMode")]
+        public bool? DebugMode { get; set; }
 
     }
 
@@ -34,5 +36,7 @@ namespace B2CTestDriver.models
 
         [JsonProperty("TimeOut")]
         public long TimeOut { get; set; }
+        [JsonProperty("DebugWait")]
+        public int? DebugWait { get; set; }
     }
 }
