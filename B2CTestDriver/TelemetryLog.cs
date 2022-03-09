@@ -78,6 +78,10 @@ namespace Tools
                     string value = propertyName == "browser" ? $"Browser: {propertyValue}" : propertyValue;
                     File.AppendAllText(consoleFile, $"\n{value}");
                 }
+                else if (eventId.Contains("exception"))
+                {
+                    File.AppendAllText(consoleFile, $"\n{propertyValue}");
+                }
                 else
                 {
                     File.AppendAllText(consoleFile, $"\n{eventId}: {propertyName} {propertyValue}");
