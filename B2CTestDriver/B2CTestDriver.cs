@@ -71,7 +71,7 @@ namespace B2CTestDriver
             //You can also specify chromedriver.exe path dircly ex: C:/MyProject/Project/drivers
 
             var browserEnv = _configuration.TestConfiguration.Environment;
-            telemetryLog.TrackEvent("information", "browser environment", browserEnv);
+            telemetryLog.TrackEvent("information", "browser", browserEnv);
 
             // If we ever want to pass driver location as a parameter
             var driverPath = TestContext.CurrentContext.TestDirectory;
@@ -108,7 +108,7 @@ namespace B2CTestDriver
             // Init AppInsights.  Or not
             string instrumentationKey = EnvVar("appInsightsInstrumentationKey");
             telemetryLog = new TelemetryLog(instrumentationKey);
-            telemetryLog.TrackEvent("\n------------------\nB2CTestDriver Started", "Environment", _configuration.TestConfiguration.Environment);
+            telemetryLog.TrackEvent("------------------\nB2CTestDriver Started", "time", DateTime.Now.ToString());
             
             var testSuite = new List<List<Page[]>>();
 
@@ -158,7 +158,9 @@ namespace B2CTestDriver
         [Test, TestCaseSource(nameof(TestStarter))]
         public async Task ExecuteFlow(List<Page[]> test)
         {
+
             TestContextWrite($"Execution of {_configuration.Tests[_testNumber++]}");
+
             for (int i = 0; i < test.Count; i++)
             {
                 var pageActions = test[i];
@@ -465,8 +467,7 @@ namespace B2CTestDriver
         [OneTimeTearDown]
         public void TearDown()
         {
-            telemetryLog.TrackEvent("B2CTestDriver finished",
-                new Dictionary<string, string>() { { "time", $"{DateTime.Now}" } });
+            telemetryLog.TrackEvent("B2CTestDriver Completed", "time", $"{DateTime.Now}");
             telemetryLog.Flush();
 
             driver.Quit();
