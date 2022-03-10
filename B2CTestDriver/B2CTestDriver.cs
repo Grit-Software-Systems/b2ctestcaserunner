@@ -207,7 +207,7 @@ namespace B2CTestDriver
                     }
                     else
                     {
-                        AssertFail("Invalid test. There was no navigation to a page to start.");
+                        AssertFail($"Test {currentTestName}: Invalid test. There was no navigation to a page to start.");
                     }
                 }
                 else
@@ -228,7 +228,7 @@ namespace B2CTestDriver
                     }
                     catch (WebDriverTimeoutException)
                     {
-                        AssertFail($"URL {pageActions[0].Value} did not load a visible element {pageActions[0].Id} within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                        AssertFail($"Test {currentTestName}: Did not load a visible element {pageActions[0].Id} within the {_configuration.TestConfiguration.TimeOut} second time period.");
                     }
                     catch (Exception ex)
                     {
@@ -257,41 +257,43 @@ namespace B2CTestDriver
                     }
                     if (pageActions[j].InputType == "Text")
                     {
-                        driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(pageActions[j].Value);
-                    }
-                    else if (pageActions[j].InputType == "Button")
-                    {
                         try
                         {
-                            var buttonId = pageActions[j].Id;
-                            // triggers for both buttons and links
-                            driver.ExecuteJavaScript($"$('#{buttonId}')[0].click()");
+                            // use javascript to clear te field in case there is already text present, still want to use send keys so as to trigger any attached events
+                            driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').val('')");
+                            driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(pageActions[j].Value);
                         }
                         catch (JavaScriptException)
                         {
-                            AssertFail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
+                            AssertFail($"Test {currentTestName}: Input text field with ID: {pageActions[j].Id} was not visible on the page.");
                         }
                         catch (Exception ex)
                         {
                             ExceptionMessage(ex);
                         }
                     }
-                    else if (pageActions[j].InputType == "link")
+                    else if (pageActions[j].InputType == "Button")
                     {
                         try
                         {
-                            driver.ExecuteJavaScript($"document.getElementById('{pageActions[j].Id}').click()");
+                            // triggers for both buttons and links
+                            driver.FindElement(By.Id(pageActions[j].Id)).Click();
                         }
                         catch (JavaScriptException)
                         {
-                            AssertFail($"Button with ID: {pageActions[j].Id} was not visible on the page.");
+                            AssertFail($"Test {currentTestName}: Button or link with ID: {pageActions[j].Id} was not visible on the page.");
+                        }
+                        catch (Exception ex)
+                        {
+                            ExceptionMessage(ex);
                         }
                     }
                     else if (pageActions[j].InputType == "Dropdown")
                     {
                         try
                         {
-                            driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').val('{pageActions[j].Value}')");
+                            SelectElement valueSelector = new SelectElement(driver.FindElement(By.Id(pageActions[j].Id)));
+                            valueSelector.SelectByValue(pageActions[j].Value);
                         }
                         catch (JavaScriptException)
                         {
@@ -302,10 +304,7 @@ namespace B2CTestDriver
                     {
                         try
                         {
-                            if (pageActions[j].Value == "true")
-                                driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', true)");
-                            else
-                                driver.ExecuteJavaScript($"$('#{pageActions[j].Id}').attr('checked', false)");
+                            driver.FindElement(By.Id(pageActions[j].Id)).Click();
                         }
                         catch (JavaScriptException)
                         {
@@ -325,20 +324,68 @@ namespace B2CTestDriver
                                 }
                                 catch (WebDriverTimeoutException)
                                 {
-                                    AssertFail($"Next element {pageActions[0].Id} was not completed within the timeout period of {_configuration.TestConfiguration.TimeOut} second(s).");
+                                    AssertFail($"Test {currentTestName}: Next element emailVerificationControl_but_verify_code was not completed within the timeout period of {_configuration.TestConfiguration.TimeOut} second(s).");
+                                }
+                                if (pageActions[j].Id == "" && pageActions[j].Value == "")
+                                {
+                                    AssertFail($"Test {currentTestName}: otpEmail function requires an id and a value.");
+                                }
+                                else if (pageActions[j].Id == "")
+                                {
+                                    AssertFail($"Test {currentTestName}: otpEmail function requires an id.");
+                                }
+                                else if (pageActions[j].Value == "")
+                                {
+                                    AssertFail($"Test {currentTestName}: otpEmail function requires a value.");
                                 }
                                 var otpCode = await B2CMethods.GetEmailOTP(
                                     driver.FindElement(By.Id(pageActions[j].Id)).GetAttribute("value"),
                                     _keys["otpFunctionAppKey"], _keys["otpFunctionApp"],
                                     _configuration.TestConfiguration.OTP_Age);
-                                driver.FindElement(By.Id("verificationCode")).SendKeys(otpCode);
-                                driver.ExecuteJavaScript("$('#verificationCode').trigger('focus')");
+                                try
+                                {
+                                    driver.FindElement(By.Id(pageActions[j].Value)).SendKeys(otpCode);
+                                }
+                                catch (NoSuchElementException)
+                                {
+                                    AssertFail($"Test {currentTestName}: otpEmail function value does not match the id of a visible element on the page.");
+                                }
+                                //driver.ExecuteJavaScript("$('#verificationCode').trigger('focus')");
                                 break;
                             case "newRandomUser":
                                 var newRandomUser = B2CMethods.NewRandomUser(pageActions[j].Value);
                                 TestContextWrite($"New user ID: {newRandomUser}");
                                 driver.FindElement(By.Id(pageActions[j].Id)).SendKeys(newRandomUser);
                                 break;
+                        }
+                    }
+                    else if (pageActions[j].InputType == "Navigate")
+                    {
+                        if (j != pageActions.Length - 1)
+                        {
+                            AssertFail($"Test {currentTestName}: Test is asking to navigate away from page before all actions are completed.");
+                        }
+                        try
+                        {
+                            driver.Navigate().GoToUrl(pageActions[j].Value);
+
+                            var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(_configuration.TestConfiguration.TimeOut));
+                            wait.Until(webDriver => webDriver.Url.Contains(pageActions[j].Value));
+                        }
+                        catch (WebDriverTimeoutException)
+                        {
+                            if (!driver.Url.Contains(pageActions[j].Value))
+                            {
+                                AssertFail($"Test {currentTestName}: Expected URL {pageActions[j].Value}, but current URL is {driver.Url}");
+                            }
+                            else
+                            {
+                                AssertFail($"Test {currentTestName}: URL {pageActions[j].Id} did not load within the {_configuration.TestConfiguration.TimeOut} second time period.");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            ExceptionMessage(ex);
                         }
                     }
                     else if (pageActions[j].InputType == "testCaseComplete")
@@ -371,6 +418,12 @@ namespace B2CTestDriver
                         {
                             AssertPass($"Successfully landed on page: {pageActions[j].Value} with element possessing ID: {pageActions[j].Id}");
                         }
+                    }
+
+                    if (_configuration.DebugMode.GetValueOrDefault(false))
+                    {
+                        TestContextWrite($"Debug wait on page {i} and action {j}");
+                        System.Threading.Thread.Sleep(_configuration.TestConfiguration.DebugWait.GetValueOrDefault(3) * 1000);
                     }
                 }
             }

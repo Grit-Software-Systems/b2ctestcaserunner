@@ -16,7 +16,11 @@
     <None Remove="drivers\chromedriver.exe" />
     <None Remove="drivers\geckodriver.exe" />
     <None Remove="keys.json" />
+    <None Remove="Tests\anuSignUp.json" />
+    <None Remove="Tests\otp.json" />
+    <None Remove="Tests\profileEdit.json" />
     <None Remove="Tests\signIn.json" />
+    <None Remove="Tests\signin1.json" />
     <None Remove="Tests\signUp.json" />
   </ItemGroup>
 
@@ -33,7 +37,19 @@
     <Content Include="keys.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Tests\anuSignUp.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Tests\otp.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Tests\profileEdit.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Tests\signIn.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Tests\signin1.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Tests\signUp.json">
