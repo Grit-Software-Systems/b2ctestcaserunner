@@ -5,14 +5,21 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using System.Linq;
 
 namespace Tools
 {
     public class TelemetryLog
     {
+        public const string metricPass = "Pass";
+        public const string metricFail = "Fail";
         const string consoleFile = "console.log";
+        static Dictionary<string, int> metrics = new Dictionary<string, int>();
+
+
         bool logToFile = false;
         Random rand = new Random();
+        string prevError = "";      // do not repeat an error log
 
         public TelemetryClient telemetryClient { get; set; }
 
@@ -42,7 +49,14 @@ namespace Tools
 
         public void TrackMetric(string metricName, int metricValue)
         {
-            if (!logToFile)
+            if (logToFile)
+            {
+                if (metrics.ContainsKey(metricName))
+                    metrics[metricName] = metrics[metricName] + metricValue;
+                else
+                    metrics.Add(metricName, metricValue);
+            }
+            else
             {
                 MetricTelemetry metricTelemetry = new MetricTelemetry(metricName, metricValue);
                 telemetryClient.TrackMetric(metricTelemetry);
@@ -66,10 +80,14 @@ namespace Tools
             }
         }
 
+
         public void TrackEvent(string eventId, string propertyName, string propertyValue)
         {
             if (logToFile)
             {
+                if (propertyName == "Error")
+                    TrackMetric(metricFail, 1);
+
                 if (eventId.Contains("assert"))
                 {
                     ConsoleLogger( $"\nStatus: {eventId.Replace("assert ", "")}");
@@ -100,6 +118,10 @@ namespace Tools
         {
             if (logToFile)
             {
+                if (prevError == exception.ToString())
+                    return;
+                prevError = exception.ToString();
+
                 string details = "";
                 if (eventProperties != null) details = JsonConvert.SerializeObject(eventProperties);
                 if (metrics != null) details = details + "\n" + JsonConvert.SerializeObject(metrics);
@@ -154,12 +176,22 @@ namespace Tools
             }
         }
 
+
         public void Flush()
         {
-            if (!logToFile)
+            if (logToFile)
+            {
+                string metricResults = "\nTest Results:";
+                foreach(string key in metrics.Keys.OrderByDescending(k=>k))
+                {
+                    metricResults = $"{metricResults}\t{key} {metrics[key]}";
+                }
+                ConsoleLogger(metricResults);
+            }
+            else
             {
                 telemetryClient.Flush();
-                System.Threading.Thread.Sleep(2000);
+                System.Threading.Thread.Sleep(2*1000);
             }
         }
     }

@@ -7,17 +7,27 @@ namespace b2ctestcaserunner
     {
         static void Main(string[] args)
         {
-            string testsCSV = "signUp,OTP,signIn";//"signUp";//
-            string[] tests = testsCSV.Split(',');
-
-            //Parallel.ForEach(tests, t =>
-            foreach (string t in tests)
+            if (args.Length > 0)
             {
-                TestCase testCase = new TestCase();
+                foreach (string arg in args)
+                {
+                    TestCase testCase = new TestCase();
 
-                testCase.ExecuteTest(t);
+                    testCase.ExecuteTest(arg);
+                }
             }
-            //);
+            else
+            {
+                string testsCSV = "signUp,OTP,signIn";//"signUp";//
+                string[] tests = testsCSV.Split(',');
+
+                foreach (string t in tests)
+                {
+                    TestCase testCase = new TestCase();
+
+                    testCase.ExecuteTest(t);
+                }
+            }
         }
     }
 }

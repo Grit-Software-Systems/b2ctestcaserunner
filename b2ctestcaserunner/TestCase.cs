@@ -19,6 +19,8 @@ namespace b2ctestcaserunner
         const string telemetryMetricPass = "Pass";
         const string telemetryMetricFail = "Fail";
 
+        static string sessionUser = "testDriver" + DateTimeOffset.Now.ToUnixTimeSeconds();
+
         string workingDir = "";
         string driverPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"drivers");
         string exeBasePath = AppDomain.CurrentDomain.BaseDirectory;
@@ -87,8 +89,23 @@ namespace b2ctestcaserunner
             {
                 currentTestName = fileName;
 
+                LoadGlobals();
+
                 string json = ReadFile(fileName);
+                if(string.IsNullOrEmpty(json))
+                {
+                    telemetryLog.Flush();
+                    return;
+                }
+
                 List<Page> pages = ParsePageJson(json);
+
+                if (pages.Count == 0)
+                {
+                    telemetryLog.TrackEvent("File Failure", "Error", $"Invalid json found in file {fileName}");
+                    telemetryLog.Flush();
+                    return;
+                }
 
                 Setup();    // set up the environment
 
@@ -157,6 +174,7 @@ namespace b2ctestcaserunner
 
         public void Execute(List<Page> pages, string currentTestName)
         {
+            string emailAddress = "";
             telemetryLog.TrackEvent("Test Started", "Test Name", currentTestName);
 
             if(!InitialPage(pages[0]))
@@ -167,6 +185,7 @@ namespace b2ctestcaserunner
             for (int i = 1; i < pages.Count; i++)
             {
                 Page page = pages[i];
+                if (page.inputType == "metadata") continue;     // ignore metadata
 
                 // Otherwise new page and we need to check if first element we want to interact with is loaded
                 try
@@ -179,10 +198,12 @@ namespace b2ctestcaserunner
                     var properties = new Dictionary<string, string>()
                     {
                         { "Test Name", currentTestName},
-                        { "URL", page.value }
+                        { "URL", page.value },
+                        { "Error", "Web Driver Timeout" }
                     };
 
                     telemetryLog.TrackEvent("Test Failure", properties);
+                    throw new Exception("Test Failure");
                 }
                 catch (Exception ex)
                 {
@@ -277,18 +298,22 @@ namespace b2ctestcaserunner
                             catch (WebDriverTimeoutException)
                             {
                                 telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: Next element emailVerificationControl_but_verify_code was not completed within the timeout period of {appSettings.TestConfiguration.TimeOut} second(s).");
+                                throw new Exception("Test Failure");
                             }
                             if (page.id == "" && page.value == "")
                             {
                                 telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires an id and a value.");
+                                throw new Exception("Test Failure");
                             }
                             else if (page.id == "")
                             {
                                 telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires an id.");
+                                throw new Exception("Test Failure");
                             }
                             else if (page.value == "")
                             {
                                 telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires a value.");
+                                throw new Exception("Test Failure");
                             }
 
                             var otpCode = B2CMethods.GetEmailOTP(
@@ -302,12 +327,17 @@ namespace b2ctestcaserunner
                             catch (NoSuchElementException)
                             {
                                 telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function value does not match the id of a visible element on the page.");
+                                throw new Exception("Test Failure");
                             }
                             break;
                         case "newRandomUser":
-                            var newRandomUser = B2CMethods.NewRandomUser(page.value);
-                            telemetryLog.TrackEvent("information", "New User", $"Test {currentTestName}: New user ID: {newRandomUser}");
-                            driver.FindElement(By.Id(page.id)).SendKeys(newRandomUser);
+                            emailAddress = B2CMethods.NewRandomUser(page.value);
+                            telemetryLog.TrackEvent("information", "New User", $"Test {currentTestName}: New user ID: {emailAddress}");
+                            driver.FindElement(By.Id(page.id)).SendKeys(emailAddress);
+                            break;
+                        case "sessionUser":
+                            emailAddress = sessionUser + page.value;
+                            driver.FindElement(By.Id(page.id)).SendKeys(emailAddress);
                             break;
                     }
                 }
@@ -325,10 +355,12 @@ namespace b2ctestcaserunner
                         if (!driver.Url.Contains(page.value))
                         {
                             telemetryLog.TrackEvent("Url Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {driver.Url}");
+                            throw new Exception("Test Failure");
                         }
                         else
                         {
                             telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {appSettings.TestConfiguration.TimeOut} second time period.");
+                            throw new Exception("Test Failure");
                         }
                     }
                     catch (Exception ex)
@@ -348,24 +380,33 @@ namespace b2ctestcaserunner
                         {
                             wait.Until(webDriver => webDriver.Url.Contains(page.value) && webDriver.FindElements(By.Id(page.id)).Count > 0);
                         }
+
+                        string suffix = string.IsNullOrEmpty(page.id) ? $"" : $"with element possessing ID: {page.id}";
+                        telemetryLog.TrackEvent("information", "TestCaseComplete", $"Test {currentTestName}: Successfully landed on page: {page.value} {suffix}");
+                        telemetryLog.TrackMetric(TelemetryLog.metricPass, 1);
                     }
                     catch (WebDriverTimeoutException)
                     {
                         telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.value} did not load within the {appSettings.TestConfiguration.TimeOut} second time period.");
+                        throw new Exception("Test Failure");
                     }
                     catch (Exception ex)
                     {
                         telemetryLog.TrackException(ex);
+                        throw new Exception("Test Failure");
                     }
 
-                    string suffix = string.IsNullOrEmpty(page.id) ? $"" : $"with element possessing ID: {page.id}";
-                    telemetryLog.TrackEvent("information", "success", $"Test {currentTestName}: Successfully landed on page: {page.value} {suffix}");
                 }
+            }
+
+            if (appSettings.DebugMode.GetValueOrDefault(false))
+            {
+                System.Threading.Thread.Sleep(appSettings.TestConfiguration.DebugWait.GetValueOrDefault(3) * 1000);
             }
 
             if (pages.Where(p => p.inputType == "testCaseComplete").FirstOrDefault() == null)
             {
-                telemetryLog.TrackEvent("Test Failure", "Error", "Test completion not configured.");
+                telemetryLog.TrackEvent("Test Failure", "Error", "Test case logic failure or you forgot to terminate the test.");
             }
         }
 
@@ -376,7 +417,10 @@ namespace b2ctestcaserunner
             telemetryLog.Flush();
 
             if (driver != null)
+            {
                 driver.Quit();
+                driver = null;
+            }
         }
     }
 }

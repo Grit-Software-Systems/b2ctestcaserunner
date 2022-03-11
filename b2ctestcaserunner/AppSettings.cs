@@ -9,6 +9,8 @@ namespace b2ctestcaserunner
         public TestConfiguration TestConfiguration { get; set; }
 
         public string[] Tests { get; set; }
+
+        public bool? DebugMode { get; set; }
     }
 
     public class TestConfiguration
@@ -18,6 +20,8 @@ namespace b2ctestcaserunner
         public string OTP_Age { get; set; }
 
         public string TimeOut { get; set; }
+
+        public int? DebugWait { get; set; }
 
         public int timeOut
         {

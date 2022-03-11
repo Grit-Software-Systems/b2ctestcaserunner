@@ -34,6 +34,7 @@ namespace b2ctestcaserunner
                     string filePath = fileName;
                     if (!File.Exists(fileName))
                     {
+                        fileName = fileName.ToLower().Replace(".json", "");
                         if (File.Exists(fileName + ".json")) filePath = fileName + ".json";
                         else if (File.Exists($"{exeBasePath}\\Tests\\{fileName}.json")) 
                             filePath = $"{exeBasePath}\\Tests\\{fileName}.json";
@@ -42,7 +43,10 @@ namespace b2ctestcaserunner
                     text = File.ReadAllText(filePath);
                 }
             }
-            catch { }
+            catch 
+            {
+                telemetryLog.TrackEvent("File Failure", "Error", $"Unable to load file {fileName}");
+            }
             return text;
         }
 
