@@ -109,15 +109,14 @@ namespace b2ctestcaserunner
         {
             bool isSuccess = false;
 
-            // Start of new test, we need to navigate to the test start
             if (page.inputType == "testCaseStart")
             {
-                // Increment j as we are handling the first element
                 try
                 {
                     driver.Navigate().GoToUrl(page.value);
 
                     var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(appSettings.TestConfiguration.timeOut));
+
                     // If no ID we just want to check for URL
                     if (String.IsNullOrEmpty(page.id))
                         wait.Until(webDriver => webDriver.Url.Contains(page.value));
@@ -291,6 +290,7 @@ namespace b2ctestcaserunner
                             {
                                 telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires a value.");
                             }
+
                             var otpCode = B2CMethods.GetEmailOTP(
                                 driver.FindElement(By.Id(page.id)).GetAttribute("value"),
                                 _keys["otpFunctionAppKey"], _keys["otpFunctionApp"],
