@@ -22,7 +22,7 @@ namespace b2ctestcaserunner
         static string sessionUser = "testDriver" + DateTimeOffset.Now.ToUnixTimeSeconds();
 
         string workingDir = "";
-        string driverPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"drivers");
+        string driverPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "drivers");
         string exeBasePath = AppDomain.CurrentDomain.BaseDirectory;
 
         string instrumentationKey = "";
@@ -45,7 +45,7 @@ namespace b2ctestcaserunner
             appSettings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(appSettingsPath));
 
             string keysPath = Path.Combine(exeBasePath, "keys.json");
-            _keys = JsonSerializer.Deserialize<Dictionary<string,string>>(File.ReadAllText(keysPath));
+            _keys = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(keysPath));
 
             instrumentationKey = EnvVar("appInsightsInstrumentationKey");
             telemetryLog = new TelemetryLog(instrumentationKey);
@@ -71,14 +71,14 @@ namespace b2ctestcaserunner
                     throw new Exception("Unrecognized Browser Environment!");
             }
         }
-    
+
 
         public void Setup()
         {
             if (appSettings == null)
                 LoadGlobals();
 
-            if (driver == null) 
+            if (driver == null)
                 SetupDriver();
         }
 
@@ -92,7 +92,7 @@ namespace b2ctestcaserunner
                 LoadGlobals();
 
                 string json = ReadFile(fileName);
-                if(string.IsNullOrEmpty(json))
+                if (string.IsNullOrEmpty(json))
                 {
                     telemetryLog.Flush();
                     return;
@@ -177,12 +177,22 @@ namespace b2ctestcaserunner
             string emailAddress = "";
             telemetryLog.TrackEvent("Test Started", "Test Name", currentTestName);
 
-            if(!InitialPage(pages[0]))
+            int iStart = 0;
+            for (int i = 0; i < pages.Count; i++)
+            {
+                if (pages[i].inputType == "testCaseStart")
+                {
+                    iStart = i;
+                    break;
+                }
+            }
+
+            if (!InitialPage(pages[iStart]))
             {
                 return;
             }
 
-            for (int i = 1; i < pages.Count; i++)
+            for (int i = iStart + 1; i < pages.Count; i++)
             {
                 Page page = pages[i];
                 if (page.inputType == "metadata") continue;     // ignore metadata
@@ -316,8 +326,9 @@ namespace b2ctestcaserunner
                                 throw new Exception("Test Failure");
                             }
 
+                            string value = driver.FindElement(By.Id(page.id)).GetAttribute("value");
                             var otpCode = B2CMethods.GetEmailOTP(
-                                driver.FindElement(By.Id(page.id)).GetAttribute("value"),
+                                value,
                                 _keys["otpFunctionAppKey"], _keys["otpFunctionApp"],
                                 appSettings.TestConfiguration.OTP_Age).Result;
                             try

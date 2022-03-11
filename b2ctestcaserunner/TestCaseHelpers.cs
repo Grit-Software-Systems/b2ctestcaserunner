@@ -76,13 +76,13 @@ namespace b2ctestcaserunner
 
             try
             {
-                OrderedDictionary ordered = JsonSerializer.Deserialize<OrderedDictionary>(json);
+                object[] arrays = JsonSerializer.Deserialize<object[]>(json);
 
-                foreach (string key in ordered.Keys)
+                foreach (object o in arrays)
                 {
-                    string jsonArray = JsonSerializer.Serialize(ordered[key]);
-                    pages.AddRange(JsonSerializer.Deserialize<Page[]>(jsonArray));
+                    pages.AddRange(JsonSerializer.Deserialize<Page[]>(o.ToString()));
                 }
+
             }
             catch { }
 
