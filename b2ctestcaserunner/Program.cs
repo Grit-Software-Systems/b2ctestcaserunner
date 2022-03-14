@@ -8,7 +8,7 @@ namespace b2ctestcaserunner
     {
         static void Main(string[] args)
         {
-            if (args.Length == 1)
+            if ((args.Length == 1) && (File.Exists(args[0])))
             {
                 TestCase testCase = new TestCase(args[0]);
 
@@ -18,7 +18,7 @@ namespace b2ctestcaserunner
             {
                 string exeBasePath = AppDomain.CurrentDomain.BaseDirectory;
                 string helpFile = Path.Combine(exeBasePath, "HelpFile.txt");
-                    
+
                 if (File.Exists(helpFile))
                 {
                     string text = File.ReadAllText(helpFile);

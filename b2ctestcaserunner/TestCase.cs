@@ -49,7 +49,7 @@ namespace b2ctestcaserunner
 
             instrumentationKey = EnvVar("appInsightsInstrumentationKey");
             telemetryLog = new TelemetryLog(instrumentationKey);
-            telemetryLog.TrackEvent("B2CTestDriver Started", "time", DateTime.Now.ToString());
+            telemetryLog.TrackEvent("--------------------------\nB2CTestDriver Started", "time", DateTime.Now.ToString());
         }
 
 
