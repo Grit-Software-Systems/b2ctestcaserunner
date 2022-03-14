@@ -4,7 +4,7 @@ using System.Text;
 
 namespace b2ctestcaserunner
 {
-    class AppSettings
+    class Settings
     {
         public TestConfiguration TestConfiguration { get; set; }
 

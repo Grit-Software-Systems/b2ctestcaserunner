@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace b2ctestcaserunner
 {
@@ -7,27 +8,24 @@ namespace b2ctestcaserunner
     {
         static void Main(string[] args)
         {
-            if (args.Length > 0)
+            if ((args.Length == 1) && (File.Exists(args[0])))
             {
-                foreach (string arg in args)
-                {
-                    TestCase testCase = new TestCase();
+                TestCase testCase = new TestCase(args[0]);
 
-                    testCase.ExecuteTest(arg);
-                }
+                testCase.DoTests();
             }
             else
             {
-                string testsCSV = "signUp,OTP,signIn";//"signUp";//
-                string[] tests = testsCSV.Split(',');
+                string exeBasePath = AppDomain.CurrentDomain.BaseDirectory;
+                string helpFile = Path.Combine(exeBasePath, "HelpFile.txt");
 
-                foreach (string t in tests)
+                if (File.Exists(helpFile))
                 {
-                    TestCase testCase = new TestCase();
-
-                    testCase.ExecuteTest(t);
+                    string text = File.ReadAllText(helpFile);
+                    Console.WriteLine(text);
                 }
             }
+
         }
     }
 }
