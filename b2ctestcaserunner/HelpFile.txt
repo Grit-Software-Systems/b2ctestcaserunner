@@ -1,0 +1,18 @@
+﻿This app takes a json file as a parameter.
+
+Environment can be Chrome or Firefox.
+OTP_Age is the maximum age in seconds for an email containing a verification code
+TimeOut is the maximum time out for a page element to appear.
+Tests is a list of tests to be executed 
+
+
+SAMPLE FILE
+-----------------
+{
+  "TestConfiguration": {
+    "Environment": "Chrome",
+    "OTP_Age": "10",
+    "TimeOut": "5"
+  },
+  "Tests": ["signUp", "signIn", "otp", "profileedit"]
+}

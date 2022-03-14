@@ -1,0 +1,34 @@
+[
+  [
+    {
+      "id": "SelfAsserted-LocalAccountSignin-Email",
+      "inputType": "metadata",
+      "value": ""
+    },
+    {
+      "id": "login-sub",
+      "inputType": "testCaseStart",
+      "value": "https://hypodiegesis.b2clogin.com/hypodiegesis.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1A_APTESTING_SISU&client_id=93d18f60-3427-4dad-a0db-ca8cf279f8aa&nonce=defaultNonce&redirect_uri=https%3A%2F%2Fjwt.ms&scope=openid&response_type=id_token&prompt=login"
+    },
+    {
+      "id": "signInName",
+      "inputType": "Text",
+      "value": "anoj31@mailinator.com"
+    },
+    {
+      "id": "password",
+      "inputType": "Text",
+      "value": "S!gn!nH3r3"
+    },
+    {
+      "id": "login-sub",
+      "inputType": "Button",
+      "value": ""
+    },
+    {
+      "id": "decodedTokenTab",
+      "inputType": "testCaseComplete",
+      "value": "jwt.ms"
+    }
+  ]
+]

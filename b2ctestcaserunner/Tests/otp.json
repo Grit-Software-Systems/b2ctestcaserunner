@@ -1,0 +1,56 @@
+[
+  [
+    {
+      "id": "SelfAsserted-LocalAccountSignin-Email",
+      "inputType": "metadata",
+      "value": ""
+    },
+    {
+      "id": "login-sub",
+      "inputType": "testCaseStart",
+      "value": "https://hypodiegesis.b2clogin.com/hypodiegesis.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1A_APTESTING_SISU&client_id=93d18f60-3427-4dad-a0db-ca8cf279f8aa&nonce=defaultNonce&redirect_uri=https%3A%2F%2Fjwt.ms&scope=openid&response_type=id_token&prompt=login"
+    },
+    {
+      "id": "otpSubstitute",
+      "inputType": "Button",
+      "value": ""
+    }
+  ],
+  [
+    {
+      "id": "OtpLocalAccountDiscovery",
+      "inputType": "metadata",
+      "value": ""
+    },
+    {
+      "id": "email",
+      "inputType": "Text",
+      "value": "anoojsignindemo@team550279.testinator.com"
+    },
+    {
+      "id": "emailVerificationControl_but_send_code",
+      "inputType": "Button",
+      "value": ""
+    },
+    {
+      "id": "email",
+      "inputType": "Fn::otpEmail",
+      "value": "verificationCode"
+    },
+    {
+      "id": "emailVerificationControl_but_verify_code",
+      "inputType": "Button",
+      "value": ""
+    },
+    {
+      "id": "continue",
+      "inputType": "Button",
+      "value": ""
+    },
+    {
+      "id": "decodedTokenTab",
+      "inputType": "testCaseComplete",
+      "value": "jwt.ms"
+    }
+  ]
+]
