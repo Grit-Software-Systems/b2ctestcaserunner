@@ -26,36 +26,36 @@ namespace b2ctestcaserunner
         string exeBasePath = AppDomain.CurrentDomain.BaseDirectory;
 
         string instrumentationKey = "";
-        AppSettings appSettings = null;
+        Settings suiteSettings = null;
         TelemetryLog telemetryLog;
         IWebDriver driver;
 
         Dictionary<string, string> _keys;
         string currentTestName;
 
-        public TestCase()
+        public TestCase(string settingsFile)
         {
-
+            LoadGlobals(settingsFile);
         }
 
 
-        public void LoadGlobals()
+        public void LoadGlobals(string settingsFile)
         {
-            string appSettingsPath = EnvVar("appsettings.json", Path.Combine(workingDir, "appsettings.json"));
-            appSettings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(appSettingsPath));
+            string appSettingsPath = Path.Combine(workingDir, settingsFile);
+            suiteSettings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(appSettingsPath));
 
             string keysPath = Path.Combine(exeBasePath, "keys.json");
             _keys = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(keysPath));
 
             instrumentationKey = EnvVar("appInsightsInstrumentationKey");
             telemetryLog = new TelemetryLog(instrumentationKey);
-            telemetryLog.TrackEvent("------------------\nB2CTestDriver Started", "time", DateTime.Now.ToString());
+            telemetryLog.TrackEvent("B2CTestDriver Started", "time", DateTime.Now.ToString());
         }
 
 
         public void SetupDriver()
         {
-            string browser = appSettings.TestConfiguration.Environment;
+            string browser = suiteSettings.TestConfiguration.Environment;
             telemetryLog.TrackEvent("information", "browser", browser);
 
             switch (browser)
@@ -75,21 +75,24 @@ namespace b2ctestcaserunner
 
         public void Setup()
         {
-            if (appSettings == null)
-                LoadGlobals();
-
             if (driver == null)
                 SetupDriver();
         }
 
+
+        public void DoTests()
+        {
+            foreach (string test in suiteSettings.Tests)
+            {
+                ExecuteTest(test);
+            }
+        }
 
         public void ExecuteTest(string fileName)
         {
             try
             {
                 currentTestName = fileName;
-
-                LoadGlobals();
 
                 string json = ReadFile(fileName);
                 if (string.IsNullOrEmpty(json))
@@ -132,7 +135,7 @@ namespace b2ctestcaserunner
                 {
                     driver.Navigate().GoToUrl(page.value);
 
-                    var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(appSettings.TestConfiguration.timeOut));
+                    var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
 
                     // If no ID we just want to check for URL
                     if (String.IsNullOrEmpty(page.id))
@@ -151,16 +154,18 @@ namespace b2ctestcaserunner
                     }
                     else if (String.IsNullOrEmpty(page.id))
                     {
-                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {appSettings.TestConfiguration.TimeOut} second time period.");
+                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.");
                     }
                     else
                     {
-                        telemetryLog.TrackEvent("Visible Element", "Error", $"Test {currentTestName}: URL {page.value} did not load a visible element {page.id} within the {appSettings.TestConfiguration.TimeOut} second time period.");
+                        telemetryLog.TrackEvent("Visible Element", "Error", $"Test {currentTestName}: URL {page.value} did not load a visible element {page.id} within the {suiteSettings.TestConfiguration.TimeOut} second time period.");
                     }
+                    throw new Exception("WebDriver Timeout Exception");
                 }
                 catch (Exception ex)
                 {
                     telemetryLog.TrackEvent("Exception Thrown", "Exception", ex.ToString());
+                    throw ex;
                 }
             }
             else
@@ -175,7 +180,7 @@ namespace b2ctestcaserunner
         public void Execute(List<Page> pages, string currentTestName)
         {
             string emailAddress = "";
-            telemetryLog.TrackEvent("Test Started", "Test Name", currentTestName);
+            telemetryLog.TrackEvent("---------------------\nTest Started", "Test Name", currentTestName);
 
             int iStart = 0;
             for (int i = 0; i < pages.Count; i++)
@@ -195,12 +200,45 @@ namespace b2ctestcaserunner
             for (int i = iStart + 1; i < pages.Count; i++)
             {
                 Page page = pages[i];
-                if (page.inputType == "metadata") continue;     // ignore metadata
+                if (page.inputType == "metadata")
+                {
+                    continue;     // ignore metadata
+                }
 
                 // Otherwise new page and we need to check if first element we want to interact with is loaded
+                if (page.inputType == "Navigate")
+                {
+                    try
+                    {
+                        driver.Navigate().GoToUrl(page.value);
+
+                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
+                        wait.Until(webDriver => webDriver.Url.Contains(page.value));
+                    }
+                    catch (WebDriverTimeoutException)
+                    {
+                        if (!driver.Url.Contains(page.value))
+                        {
+                            telemetryLog.TrackEvent("Url Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {driver.Url}");
+                            throw new Exception("Test Failure");
+                        }
+                        else
+                        {
+                            telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.");
+                            throw new Exception("Test Failure");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        telemetryLog.TrackException(ex);
+                    }
+                    continue;
+                }
+
+
                 try
                 {
-                    var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(appSettings.TestConfiguration.timeOut));
+                    var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                     wait.Until(webDriver => webDriver.FindElements(By.Id(page.id)).Count > 0);
                 }
                 catch (WebDriverTimeoutException)
@@ -212,7 +250,7 @@ namespace b2ctestcaserunner
                         { "Error", "Web Driver Timeout" }
                     };
 
-                    telemetryLog.TrackEvent("Test Failure", properties);
+                    telemetryLog.TrackEvent("Test Failure", "Error", "WebDriver Timeout");
                     throw new Exception("Test Failure");
                 }
                 catch (Exception ex)
@@ -227,16 +265,18 @@ namespace b2ctestcaserunner
                     // Check that the element we are looking for is visible
                     try
                     {
-                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(appSettings.TestConfiguration.timeOut));
+                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                         wait.Until(driver => driver.FindElement(By.Id(page.id)).Displayed);
                     }
                     catch (WebDriverTimeoutException)
                     {
-                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: Next element {page.id} was not completed within the timeout period of {appSettings.TestConfiguration.TimeOut} second(s).");
+                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: Next element {page.id} was not completed within the timeout period of {suiteSettings.TestConfiguration.TimeOut} second(s).");
+                        throw new Exception("WebDriver Timeout Exception");
                     }
                     catch (Exception ex)
                     {
                         telemetryLog.TrackException(ex);
+                        throw ex;
                     }
                 }
                 if (page.inputType == "Text")
@@ -247,13 +287,15 @@ namespace b2ctestcaserunner
                         driver.ExecuteJavaScript($"$('#{page.id}').val('')");
                         driver.FindElement(By.Id(page.id)).SendKeys(page.value);
                     }
-                    catch (JavaScriptException)
+                    catch (JavaScriptException jse)
                     {
                         telemetryLog.TrackEvent("Input failure", "Error", $"Test {currentTestName}: Input text field with ID: {page.id} was not visible on the page.");
+                        throw jse;
                     }
                     catch (Exception ex)
                     {
                         telemetryLog.TrackException(ex);
+                        throw ex;
                     }
                 }
                 else if (page.inputType == "Button")
@@ -262,13 +304,15 @@ namespace b2ctestcaserunner
                     {
                         driver.FindElement(By.Id(page.id)).Click();
                     }
-                    catch (JavaScriptException)
+                    catch (JavaScriptException jse)
                     {
                         telemetryLog.TrackEvent("Button Failure", "Error", $"Test {currentTestName}: Button with ID: {page.id} was not visible on the page.");
+                        throw jse;
                     }
                     catch (Exception ex)
                     {
                         telemetryLog.TrackException(ex);
+                        throw ex;
                     }
                 }
                 else if (page.inputType == "Dropdown")
@@ -278,9 +322,10 @@ namespace b2ctestcaserunner
                         SelectElement valueSelector = new SelectElement(driver.FindElement(By.Id(page.id)));
                         valueSelector.SelectByValue(page.value);
                     }
-                    catch (JavaScriptException)
+                    catch (JavaScriptException jse)
                     {
                         telemetryLog.TrackEvent("Dropdown Failure", "Error", $"Dropdown with ID: {page.id} was not visible on the page.");
+                        throw jse;
                     }
                 }
                 else if (page.inputType == "Checkbox")
@@ -289,9 +334,10 @@ namespace b2ctestcaserunner
                     {
                         driver.ExecuteJavaScript($"$('#{page.id}').trigger('click')");
                     }
-                    catch (JavaScriptException)
+                    catch (JavaScriptException jse)
                     {
                         telemetryLog.TrackEvent("Checkbox Failure", "Error", $"Test {currentTestName}: Checkbox with ID: {page.id} was not visible on the page.");
+                        throw jse;
                     }
                 }
                 else if (page.inputType.Contains("Fn::"))
@@ -302,12 +348,12 @@ namespace b2ctestcaserunner
                         case "otpEmail":
                             try
                             {
-                                var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(appSettings.TestConfiguration.timeOut));
+                                var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                                 wait.Until(driver => driver.FindElement(By.Id("emailVerificationControl_but_verify_code")).Displayed);
                             }
                             catch (WebDriverTimeoutException)
                             {
-                                telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: Next element emailVerificationControl_but_verify_code was not completed within the timeout period of {appSettings.TestConfiguration.TimeOut} second(s).");
+                                telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: Next element emailVerificationControl_but_verify_code was not completed within the timeout period of {suiteSettings.TestConfiguration.TimeOut} second(s).");
                                 throw new Exception("Test Failure");
                             }
                             if (page.id == "" && page.value == "")
@@ -330,7 +376,7 @@ namespace b2ctestcaserunner
                             var otpCode = B2CMethods.GetEmailOTP(
                                 value,
                                 _keys["otpFunctionAppKey"], _keys["otpFunctionApp"],
-                                appSettings.TestConfiguration.OTP_Age).Result;
+                                suiteSettings.TestConfiguration.OTP_Age).Result;
                             try
                             {
                                 driver.FindElement(By.Id(page.value)).SendKeys(otpCode);
@@ -352,38 +398,11 @@ namespace b2ctestcaserunner
                             break;
                     }
                 }
-                else if (page.inputType == "Navigate")
-                {
-                    try
-                    {
-                        driver.Navigate().GoToUrl(page.value);
-
-                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(appSettings.TestConfiguration.timeOut));
-                        wait.Until(webDriver => webDriver.Url.Contains(page.value));
-                    }
-                    catch (WebDriverTimeoutException)
-                    {
-                        if (!driver.Url.Contains(page.value))
-                        {
-                            telemetryLog.TrackEvent("Url Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {driver.Url}");
-                            throw new Exception("Test Failure");
-                        }
-                        else
-                        {
-                            telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {appSettings.TestConfiguration.TimeOut} second time period.");
-                            throw new Exception("Test Failure");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        telemetryLog.TrackException(ex);
-                    }
-                }
                 else if (page.inputType == "testCaseComplete")
                 {
                     try
                     {
-                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(appSettings.TestConfiguration.timeOut));
+                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                         // If no ID we just want to check for URL (preference is to also look for an id)
                         if (String.IsNullOrEmpty(page.id))
                             wait.Until(webDriver => webDriver.Url.Contains(page.value));
@@ -398,7 +417,7 @@ namespace b2ctestcaserunner
                     }
                     catch (WebDriverTimeoutException)
                     {
-                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.value} did not load within the {appSettings.TestConfiguration.TimeOut} second time period.");
+                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.value} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.");
                         throw new Exception("Test Failure");
                     }
                     catch (Exception ex)
@@ -410,9 +429,9 @@ namespace b2ctestcaserunner
                 }
             }
 
-            if (appSettings.DebugMode.GetValueOrDefault(false))
+            if (suiteSettings.DebugMode.GetValueOrDefault(false))
             {
-                System.Threading.Thread.Sleep(appSettings.TestConfiguration.DebugWait.GetValueOrDefault(3) * 1000);
+                System.Threading.Thread.Sleep(suiteSettings.TestConfiguration.DebugWait.GetValueOrDefault(3) * 1000);
             }
 
             if (pages.Where(p => p.inputType == "testCaseComplete").FirstOrDefault() == null)
