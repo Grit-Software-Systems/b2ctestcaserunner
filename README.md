@@ -1,5 +1,10 @@
 # B2C Test Driver
 
+DO NOT RUN THE EXECUTABLE WITHOUT READING THROUGH THE DOCUMENTATION
+https://app.archbee.io/public/wAuMLW_7a_gQJbYZUuZpI
+
+If you run into any problems please contact us by email at info@gritsoftwaresystems.com
+
 B2C test driver is a utility for B2C developers to easily script and run a Selenium test against their site.
 
 ## Requirements
