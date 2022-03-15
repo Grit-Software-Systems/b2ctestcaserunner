@@ -8,7 +8,7 @@
     {
       "id": "login-sub",
       "inputType": "testCaseStart",
-      "value": "https://hypodiegesis.b2clogin.com/hypodiegesis.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1A_APTESTING_SISU&client_id=93d18f60-3427-4dad-a0db-ca8cf279f8aa&nonce=defaultNonce&redirect_uri=https%3A%2F%2Fjwt.ms&scope=openid&response_type=id_token&prompt=login"
+      "value": "https://hypodiegesis.b2clogin.com/hypodiegesis.onmicrosoft.com/oauth2/v2.0/authorize?p=B2C_1A_GRITDEMO_SISU&client_id=93d18f60-3427-4dad-a0db-ca8cf279f8aa&nonce=defaultNonce&redirect_uri=https%3A%2F%2Fjwt.ms&scope=openid&response_type=id_token&prompt=login"
     },
     {
       "id": "signInName",
