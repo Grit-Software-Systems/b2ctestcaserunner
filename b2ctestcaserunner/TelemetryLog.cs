@@ -6,6 +6,9 @@ using System.IO;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using System.Linq;
+using System.Windows.Forms;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace Tools
 {
@@ -86,9 +89,14 @@ namespace Tools
             if (logToFile)
             {
                 if (propertyName == "Error")
+                {
                     TrackMetric(metricFail, 1);
+                    ConsoleLogger($"\n{eventId}: {propertyName} {propertyValue}");
 
-                if (eventId.Contains("assert"))
+                    string fileName = TakeScreenshot();
+                    ConsoleLogger($"\n{eventId}: screenshot name {fileName}");
+                }
+                else if (eventId.Contains("assert"))
                 {
                     ConsoleLogger( $"\nStatus: {eventId.Replace("assert ", "")}");
                 }
@@ -194,5 +202,26 @@ namespace Tools
                 System.Threading.Thread.Sleep(2*1000);
             }
         }
+
+
+        string TakeScreenshot()
+        {
+            string fileName = $"screenshot.{DateTime.Now.ToString("yyyy.MMM.dd.hhmmss.fff")}.jpg"; ;
+
+            Screen screen = Screen.PrimaryScreen;
+            int width = screen.Bounds.Width;
+            int height = screen.Bounds.Height;
+
+            using var bitmap = new Bitmap(width, height);
+            using (var g = Graphics.FromImage(bitmap))
+            {
+                g.CopyFromScreen(0, 0, 0, 0,
+                bitmap.Size, CopyPixelOperation.SourceCopy);
+            }
+            bitmap.Save(fileName, ImageFormat.Jpeg);
+
+            return fileName;
+        }
+
     }
 }
