@@ -1,5 +1,7 @@
 # B2C Test Driver
 
+DO NOT RUN THE EXECUTABLE WITHOUT READING THROUGH THE DOCUMENTATION
+
 B2C test driver is a utility for B2C developers to easily script and run a Selenium test against their site.
 
 ## Requirements
