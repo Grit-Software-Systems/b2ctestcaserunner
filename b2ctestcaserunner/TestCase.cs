@@ -211,6 +211,7 @@ namespace b2ctestcaserunner
                     try
                     {
                         driver.Navigate().GoToUrl(page.value);
+                        System.Threading.Thread.Sleep(1000);    // let the browser catch up
 
                         var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                         wait.Until(webDriver => webDriver.Url.Contains(page.value));
