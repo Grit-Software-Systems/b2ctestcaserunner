@@ -49,14 +49,16 @@ namespace b2ctestcaserunner
 
             instrumentationKey = EnvVar("appInsightsInstrumentationKey");
             telemetryLog = new TelemetryLog(instrumentationKey);
-            telemetryLog.TrackEvent("--------------------------\nB2CTestDriver Started", "time", DateTime.Now.ToString());
+
+            telemetryLog.ConsoleLogger("--------------------------------------------------------");
+            telemetryLog.TrackEvent("B2CTestDriver Started", "time", DateTime.Now.ToString());
+            telemetryLog.TrackEvent("information", "browser", suiteSettings.TestConfiguration.Environment + "\n");
         }
 
 
         public void SetupDriver()
         {
             string browser = suiteSettings.TestConfiguration.Environment;
-            telemetryLog.TrackEvent("information", "browser", browser);
 
             switch (browser)
             {
@@ -179,8 +181,9 @@ namespace b2ctestcaserunner
 
         public void Execute(List<Page> pages, string currentTestName)
         {
+            string prevURL = "";
             string emailAddress = "";
-            telemetryLog.TrackEvent("---------------------\nTest Started", "Test Name", currentTestName);
+            telemetryLog.TrackEvent("Test Started", "Test Name", currentTestName);
 
             int iStart = 0;
             for (int i = 0; i < pages.Count; i++)
@@ -210,6 +213,9 @@ namespace b2ctestcaserunner
                 {
                     try
                     {
+                        while (driver.Url == prevURL)
+                            System.Threading.Thread.Sleep(100);
+
                         driver.Navigate().GoToUrl(page.value);
 
                         var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
@@ -234,7 +240,7 @@ namespace b2ctestcaserunner
                     }
                     continue;
                 }
-
+                prevURL = driver.Url;
 
                 try
                 {
