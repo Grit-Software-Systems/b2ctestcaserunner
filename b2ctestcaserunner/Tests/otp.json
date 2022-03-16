@@ -30,7 +30,7 @@
     {
       "id": "emailVerificationControl_but_send_code",
       "inputType": "Button",
-      "value": ""
+      "value": "emailVerificationControl_but_send_code"
     },
     {
       "id": "email",
@@ -40,7 +40,7 @@
     {
       "id": "emailVerificationControl_but_verify_code",
       "inputType": "Button",
-      "value": ""
+      "value": "emailVerificationControl_but_verify_code"
     },
     {
       "id": "continue",
