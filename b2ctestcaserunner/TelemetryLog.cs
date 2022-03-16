@@ -195,6 +195,7 @@ namespace Tools
                     metricResults = $"{metricResults}\t{key} {metrics[key]}";
                 }
                 ConsoleLogger(metricResults);
+                ConsoleLogger("\n-----------------------");
             }
             else
             {
