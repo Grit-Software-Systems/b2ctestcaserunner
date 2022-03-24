@@ -71,7 +71,7 @@ namespace Tools
         {
             if (logToFile)
             {
-                ConsoleLogger( $"\n{eventId}:{JsonConvert.SerializeObject(eventProperties)}");
+                ConsoleLogger( $"{eventId}:{JsonConvert.SerializeObject(eventProperties)}");
             }
             else
             {
@@ -91,27 +91,27 @@ namespace Tools
                 if (propertyName == "Error")
                 {
                     TrackMetric(metricFail, 1);
-                    ConsoleLogger($"\n{eventId}: {propertyName} {propertyValue}");
+                    ConsoleLogger($"{eventId}: {propertyName} {propertyValue}");
 
                     string fileName = TakeScreenshot();
-                    ConsoleLogger($"\n{eventId}: screenshot name {fileName}");
+                    ConsoleLogger($"{eventId}: screenshot name {fileName}");
                 }
                 else if (eventId.Contains("assert"))
                 {
-                    ConsoleLogger( $"\nStatus: {eventId.Replace("assert ", "")}");
+                    ConsoleLogger( $"Status: {eventId.Replace("assert ", "")}");
                 }
                 else if (eventId.Contains("information"))
                 {
                     string value = propertyName == "browser" ? $"Browser: {propertyValue}" : propertyValue;
-                    ConsoleLogger( $"\n{value}");
+                    ConsoleLogger( $"{value}");
                 }
                 else if (eventId.Contains("exception"))
                 {
-                    ConsoleLogger( $"\n{propertyValue}");
+                    ConsoleLogger( $"{propertyValue}");
                 }
                 else
                 {
-                    ConsoleLogger( $"\n{eventId}: {propertyName} {propertyValue}");
+                    ConsoleLogger( $"{eventId}: {propertyName} {propertyValue}");
                 }
             }
             else
@@ -121,6 +121,7 @@ namespace Tools
                 TrackEvent(eventId, eventProperties);
             }
         }
+
 
         public void TrackException(Exception exception, Dictionary<string, string> eventProperties = null, Dictionary<string, double> metrics = null)
         {
@@ -133,7 +134,7 @@ namespace Tools
                 string details = "";
                 if (eventProperties != null) details = JsonConvert.SerializeObject(eventProperties);
                 if (metrics != null) details = details + "\n" + JsonConvert.SerializeObject(metrics);
-                ConsoleLogger( $"\nException thrown\n{exception.ToString()}\n{details}");
+                ConsoleLogger( $"Exception thrown\n{exception.ToString()}\n{details}");
             }
             else
             {
@@ -146,7 +147,7 @@ namespace Tools
         {
             if (logToFile)
             {
-                ConsoleLogger( $"\nTrace: {message}");
+                ConsoleLogger( $"Trace: {message}");
             }
             else
             {
@@ -159,7 +160,7 @@ namespace Tools
         {
             if (logToFile)
             {
-                ConsoleLogger( $"\nexception: {message}");
+                ConsoleLogger( $"exception: {message}");
             }
             else
             {
@@ -176,7 +177,7 @@ namespace Tools
             {
                 try
                 {
-                    File.AppendAllText(consoleFile, msg);
+                    File.AppendAllText(consoleFile, $"\n{msg}");
                     break;
                 }
                 catch { }
@@ -195,7 +196,7 @@ namespace Tools
                     metricResults = $"{metricResults}\t{key} {metrics[key]}";
                 }
                 ConsoleLogger(metricResults);
-                ConsoleLogger("\n-----------------------");
+                ConsoleLogger("-----------------------");
             }
             else
             {

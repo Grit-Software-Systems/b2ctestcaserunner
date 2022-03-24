@@ -41,8 +41,14 @@ namespace b2ctestcaserunner
 
         public void LoadGlobals(string settingsFile)
         {
+            bool invalidJsonInSettingsFile = true; ;
             string appSettingsPath = Path.Combine(workingDir, settingsFile);
-            suiteSettings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(appSettingsPath));
+            try
+            {
+                suiteSettings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(appSettingsPath));
+                invalidJsonInSettingsFile = false;
+            }
+            catch { }
 
             string keysPath = Path.Combine(exeBasePath, "keys.json");
             _keys = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(keysPath));
@@ -53,24 +59,77 @@ namespace b2ctestcaserunner
             telemetryLog.ConsoleLogger("--------------------------------------------------------");
             telemetryLog.TrackEvent("B2CTestDriver Started", "time", DateTime.Now.ToString());
             telemetryLog.TrackEvent("information", "browser", suiteSettings.TestConfiguration.Environment + "\n");
+
+            if(invalidJsonInSettingsFile)
+            {
+                telemetryLog.ConsoleLogger("--------------------------------------------------------");
+                telemetryLog.ConsoleLogger($"file {settingsFile} contains invalid json.  Test terminated");
+                throw new Exception("suite file contains invalid json");
+            }
+
+            if (string.IsNullOrEmpty(suiteSettings.TestConfiguration.TimeOut)
+                || (suiteSettings.TestConfiguration.timeOut == 0))
+            {
+                suiteSettings.TestConfiguration.timeOut = 5;
+
+                telemetryLog.ConsoleLogger("----------------");
+                telemetryLog.ConsoleLogger("Timeout value is set to zero or not defined.\tdefault value of 5 is used.");
+                telemetryLog.ConsoleLogger(">>> Update the suite file, add a line \"    \"TimeOut\": \"5\"");
+                telemetryLog.ConsoleLogger("----------------");
+            }
         }
 
 
         public void SetupDriver()
         {
-            string browser = suiteSettings.TestConfiguration.Environment;
+            string chromedriver = "chromedriver.exe";
+            string firefoxdriver = "geckodriver.exe";
 
-            switch (browser)
+            string browser = suiteSettings.TestConfiguration.Environment;
+            string name = "";
+            bool throwException = false;
+
+            try
             {
-                case "Chrome":
-                    driver = new ChromeDriver(driverPath);      // chromedriver.exe
-                    break;
-                case "FireFox":
-                    driver = new FirefoxDriver(driverPath);     // geckodriver.exe
-                    break;
-                default:
-                    telemetryLog.TrackEvent("exception", "browser environment", "Unrecognized Browser Environment.  Test Aborted.");
-                    throw new Exception("Unrecognized Browser Environment!");
+                switch (browser.ToLower())
+                {
+                    case "chrome":
+                        if (!File.Exists(chromedriver))
+                        {
+                            name = chromedriver;
+                            throw new Exception($"missing driver {chromedriver}");
+                        }
+
+                        name = "chrome.exe";
+                        driver = new ChromeDriver(driverPath);      // chromedriver.exe
+                        break;
+                    case "firefox":
+                        if (!File.Exists(firefoxdriver))
+                        {
+                            name = firefoxdriver;
+                            throw new Exception($"missing driver {firefoxdriver}");
+                        }
+
+                        name = "firefox.exe";
+                        driver = new FirefoxDriver(driverPath);     // geckodriver.exe
+                        break;
+                    default:
+                        telemetryLog.TrackEvent("exception", "browser environment", "Unrecognized Browser Environment.  Test Aborted.");
+                        throw new Exception("Unrecognized Browser Environment!");
+                }
+            }
+            catch(Exception ex)
+            {
+                throwException = true;
+                telemetryLog.ConsoleLogger("---------------------------");
+                telemetryLog.ConsoleLogger($"cannot find {name}");
+                telemetryLog.ConsoleLogger("---------------------------");
+            }
+
+            if(throwException)
+            {
+                try { if (driver != null) driver.Close(); } catch { }
+                throw new Exception($"cannot find {name} for {browser}");
             }
         }
 
@@ -84,6 +143,13 @@ namespace b2ctestcaserunner
 
         public void DoTests()
         {
+            if (suiteSettings.Tests.Length == 0)
+            {
+                telemetryLog.ConsoleLogger("----------------");
+                telemetryLog.ConsoleLogger("No tests defined in Suite file to execute");
+                telemetryLog.ConsoleLogger("----------------");
+            }
+
             foreach (string test in suiteSettings.Tests)
             {
                 ExecuteTest(test);
@@ -103,7 +169,7 @@ namespace b2ctestcaserunner
                     return;
                 }
 
-                List<Page> pages = ParsePageJson(json);
+                List<Page> pages = ParsePageJson(json, fileName);
 
                 if (pages.Count == 0)
                 {
@@ -153,6 +219,7 @@ namespace b2ctestcaserunner
                     if (!driver.Url.Contains(page.value))
                     {
                         telemetryLog.TrackEvent("URL Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {driver.Url}");
+                        telemetryLog.ConsoleLogger($"-------------\n>>> FIX THE URL {page.value}\n-------------");
                     }
                     else if (String.IsNullOrEmpty(page.id))
                     {
@@ -161,6 +228,7 @@ namespace b2ctestcaserunner
                     else
                     {
                         telemetryLog.TrackEvent("Visible Element", "Error", $"Test {currentTestName}: URL {page.value} did not load a visible element {page.id} within the {suiteSettings.TestConfiguration.TimeOut} second time period.");
+                        telemetryLog.ConsoleLogger($"-------------\n>>> FIX THE ELEMENT NAME {page.id}\n-------------");
                     }
                     throw new Exception("WebDriver Timeout Exception");
                 }
@@ -442,6 +510,9 @@ namespace b2ctestcaserunner
 
             if (pages.Where(p => p.inputType == "testCaseComplete").FirstOrDefault() == null)
             {
+                telemetryLog.ConsoleLogger("-------------------");
+                telemetryLog.ConsoleLogger($">>> test file should include a line       \"inputType\": \"testCaseComplete\",");
+                telemetryLog.ConsoleLogger("-------------------");
                 telemetryLog.TrackEvent("Test Failure", "Error", "Test case logic failure or you forgot to terminate the test.");
             }
         }

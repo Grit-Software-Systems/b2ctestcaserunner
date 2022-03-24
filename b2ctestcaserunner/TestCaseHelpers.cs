@@ -70,7 +70,7 @@ namespace b2ctestcaserunner
         /// </summary>
         /// <param name="json"></param>
         /// <returns>list of Pages</returns>
-        List<Page> ParsePageJson(string json)
+        List<Page> ParsePageJson(string json, string fileName = "")
         {
             List<Page> pages = new List<Page>();
 
@@ -84,7 +84,13 @@ namespace b2ctestcaserunner
                 }
 
             }
-            catch { }
+            catch 
+            {
+                telemetryLog.ConsoleLogger("-----------------------------------------------------");
+                telemetryLog.ConsoleLogger($"file {fileName} has invalid json.  test terminated");
+                telemetryLog.ConsoleLogger("-----------------------------------------------------");
+                throw new Exception($"file {fileName} has invalid json.  test terminated");
+            }
 
             return pages;
         }
