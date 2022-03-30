@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
 using System.IO;
+using System.Text;
 
 namespace Tools
 {
@@ -83,7 +84,7 @@ namespace Tools
             
             try
             {
-                var data = File.ReadAllBytes(localFilePath);
+                var data = File.ReadAllText(localFilePath);
                 response = UpsertBlob(containerName, blobFileName, data);
             }
             catch(Exception ex)
@@ -102,7 +103,7 @@ namespace Tools
         /// <param name="blobFileName"></param>
         /// <param name="data"></param>
         /// <returns></returns>
-        public string UpsertBlob(string containerName, string blobFileName, object data)
+        public string UpsertBlob(string containerName, string blobFileName, string data)
         {
             string response = "";
 
@@ -113,7 +114,8 @@ namespace Tools
 
                 blobClient = containerClient.GetBlobClient(blobFileName);
                 blobClient.DeleteIfExists();
-                BlobContentInfo bci = blobClient.UploadAsync(new BinaryData(data)).Result;
+                BlobContentInfo bci =
+                    blobClient.UploadAsync(new MemoryStream(Encoding.UTF8.GetBytes(data.ToString()))).Result;
             }
             catch (Exception ex)
             {
@@ -158,7 +160,7 @@ namespace Tools
             try
             {
                 containerClient = blobServiceClient.GetBlobContainerClient(blobContainerName);
-                BlobClient blobClient = containerClient.GetBlobClient(blobFileName);
+                BlobClient blobClient = containerClient.GetBlobClient(blobFileName.ToLower());
                 var response = blobClient.DownloadAsync().Result;
                 using (var streamReader = new StreamReader(response.Value.Content))
                 {

@@ -112,7 +112,14 @@ namespace b2ctestcaserunner
                         }
 
                         name = "chrome.exe";
-                        driver = new ChromeDriver(driverPath);      // chromedriver.exe
+
+                        List<string> ls = new List<string>();       // idp-119 stop logging bluetooth driver missing
+                        ls.Add("enable-logging"); 
+                        ChromeOptions options = new ChromeOptions();
+                        options.AddExcludedArguments(ls);
+
+                        driver = new ChromeDriver(driverPath, options);      // chromedriver.exe
+                        
                         break;
                     case "firefox":
                         if (!File.Exists(firefoxdriver))
