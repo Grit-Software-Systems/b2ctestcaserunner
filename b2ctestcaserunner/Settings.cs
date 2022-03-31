@@ -26,6 +26,7 @@ namespace b2ctestcaserunner
         public int timeOut
         {
             get { return int.Parse(TimeOut); }
+            set { TimeOut = value.ToString(); }
         }
     }
 }
