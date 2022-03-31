@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using OpenQA.Selenium.Support.UI;
 using OpenQA.Selenium.Support.Extensions;
 using System.Linq;
+using System.Net;
 
 namespace b2ctestcaserunner
 {
@@ -18,7 +19,8 @@ namespace b2ctestcaserunner
     {
         const string telemetryMetricPass = "Pass";
         const string telemetryMetricFail = "Fail";
-
+        const string azureBlobSuitesDir = "testSuite";
+    
         static string sessionUser = "testDriver" + DateTimeOffset.Now.ToUnixTimeSeconds();
 
         string workingDir = "";
@@ -32,23 +34,32 @@ namespace b2ctestcaserunner
 
         Dictionary<string, string> _keys;
         string currentTestName;
+        string container;
 
-        public TestCase(string settingsFile)
+
+        public TestCase(string settingsFile, string containerName)
         {
+            container = containerName;
             LoadGlobals(settingsFile);
         }
 
 
         public void LoadGlobals(string settingsFile)
         {
-            bool invalidJsonInSettingsFile = true; ;
-            string appSettingsPath = Path.Combine(workingDir, settingsFile);
+            bool invalidJsonInSettingsFile = true;
+            string appSettingsPath = string.IsNullOrEmpty(container)
+                ? Path.Combine(workingDir, settingsFile)
+                : $"{azureBlobSuitesDir}/{settingsFile}";  // azure blob storage
+
             try
             {
-                suiteSettings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(appSettingsPath));
+                string json = ReadFile(appSettingsPath);
+                suiteSettings = JsonSerializer.Deserialize<Settings>(json);
                 invalidJsonInSettingsFile = false;
             }
-            catch { }
+            catch ( Exception ex)
+            {
+            }
 
             string keysPath = Path.Combine(exeBasePath, "keys.json");
             _keys = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(keysPath));
@@ -60,7 +71,7 @@ namespace b2ctestcaserunner
             telemetryLog.TrackEvent("B2CTestDriver Started", "time", DateTime.Now.ToString());
             telemetryLog.TrackEvent("information", "browser", suiteSettings.TestConfiguration.Environment + "\n");
 
-            if(invalidJsonInSettingsFile)
+            if (invalidJsonInSettingsFile)
             {
                 telemetryLog.ConsoleLogger("--------------------------------------------------------");
                 telemetryLog.ConsoleLogger($"file {settingsFile} contains invalid json.  Test terminated");
@@ -101,7 +112,14 @@ namespace b2ctestcaserunner
                         }
 
                         name = "chrome.exe";
-                        driver = new ChromeDriver(driverPath);      // chromedriver.exe
+
+                        List<string> ls = new List<string>();       // idp-119 stop logging bluetooth driver missing
+                        ls.Add("enable-logging"); 
+                        ChromeOptions options = new ChromeOptions();
+                        options.AddExcludedArguments(ls);
+
+                        driver = new ChromeDriver(driverPath, options);      // chromedriver.exe
+                        
                         break;
                     case "firefox":
                         if (!File.Exists(firefoxdriver))
@@ -252,6 +270,8 @@ namespace b2ctestcaserunner
             string prevURL = "";
             string emailAddress = "";
             telemetryLog.TrackEvent("Test Started", "Test Name", currentTestName);
+            if(!string.IsNullOrEmpty(container))
+                telemetryLog.TrackEvent("BlobStorage", "Container Name", container);
 
             int iStart = 0;
             for (int i = 0; i < pages.Count; i++)

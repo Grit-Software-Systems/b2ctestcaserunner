@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using Tools;
 
 namespace b2ctestcaserunner
 {
@@ -21,6 +22,13 @@ namespace b2ctestcaserunner
         /// <returns>contents of file as a string if success, zero length string otherwise</returns>
         string ReadFile(string fileName)
         {
+            if(!string.IsNullOrEmpty(container))
+            {
+                string connectionString = EnvVar("AzureBlobConnectionString");
+                AzureBlobStorageFrame azureBlobStorage = new AzureBlobStorageFrame(connectionString);
+                return azureBlobStorage.ReadAllText(container, fileName);
+            }
+
             string text = "";
 
             try
