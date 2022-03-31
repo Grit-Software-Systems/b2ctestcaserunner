@@ -323,8 +323,8 @@ namespace b2ctestcaserunner
                         { "URL", page.value },
                         { "Error", "Web Driver Timeout" }
                     };
-
                     telemetryLog.TrackEvent("Test Failure", "Error", "WebDriver Timeout");
+                    telemetryLog.ConsoleLogger("This usually happens with the incorrect input values, please refer the screenshot to find out what could have been wrong");
                     throw new Exception("Test Failure");
                 }
                 catch (Exception ex)
