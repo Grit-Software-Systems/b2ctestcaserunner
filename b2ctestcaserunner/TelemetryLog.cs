@@ -9,14 +9,18 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Drawing;
 using System.Drawing.Imaging;
+using OpenQA.Selenium;
 
 namespace Tools
 {
     public class TelemetryLog
     {
+        public static IWebDriver webDriver;
+        public static string consoleFile = "console.log";
+
         public const string metricPass = "Pass";
         public const string metricFail = "Fail";
-        const string consoleFile = "console.log";
+        
         static Dictionary<string, int> metrics = new Dictionary<string, int>();
 
 
@@ -93,8 +97,17 @@ namespace Tools
                     TrackMetric(metricFail, 1);
                     ConsoleLogger($"{eventId}: {propertyName} {propertyValue}");
 
-                    string fileName = TakeScreenshot();
-                    ConsoleLogger($"{eventId}: screenshot name {fileName}");
+                    try
+                    {
+                        string fileName = $"ScreenShot.{DateTime.Now.ToString("MMdd.HHmm.ss.ff")}.png";
+                        Screenshot ss = ((ITakesScreenshot)webDriver).GetScreenshot();
+                        ss.SaveAsFile(fileName);
+                        ConsoleLogger($"{eventId}: screenshot name {fileName}");
+                    }
+                    catch(Exception ex)
+                    {
+                        Console.WriteLine(ex.ToString());
+                    }
                 }
                 else if (eventId.Contains("assert"))
                 {

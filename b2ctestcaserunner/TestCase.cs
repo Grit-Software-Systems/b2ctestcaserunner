@@ -30,7 +30,7 @@ namespace b2ctestcaserunner
         string instrumentationKey = "";
         Settings suiteSettings = null;
         TelemetryLog telemetryLog;
-        IWebDriver driver;
+        IWebDriver webDriver;
 
         Dictionary<string, string> _keys;
         string currentTestName;
@@ -118,7 +118,7 @@ namespace b2ctestcaserunner
                         ChromeOptions options = new ChromeOptions();
                         options.AddExcludedArguments(ls);
 
-                        driver = new ChromeDriver(driverPath, options);      // chromedriver.exe
+                        webDriver = new ChromeDriver(driverPath, options);      // chromedriver.exe
                         
                         break;
                     case "firefox":
@@ -129,7 +129,7 @@ namespace b2ctestcaserunner
                         }
 
                         name = "firefox.exe";
-                        driver = new FirefoxDriver(driverPath);     // geckodriver.exe
+                        webDriver = new FirefoxDriver(driverPath);     // geckodriver.exe
                         break;
                     default:
                         telemetryLog.TrackEvent("exception", "browser environment", "Unrecognized Browser Environment.  Test Aborted.");
@@ -146,7 +146,7 @@ namespace b2ctestcaserunner
 
             if(throwException)
             {
-                try { if (driver != null) driver.Close(); } catch { }
+                try { if (webDriver != null) webDriver.Close(); } catch { }
                 throw new Exception($"cannot find {name} for {browser}");
             }
         }
@@ -154,8 +154,9 @@ namespace b2ctestcaserunner
 
         public void Setup()
         {
-            if (driver == null)
+            if (webDriver == null)
                 SetupDriver();
+            TelemetryLog.webDriver = webDriver;     // for screenshots
         }
 
 
@@ -219,9 +220,9 @@ namespace b2ctestcaserunner
             {
                 try
                 {
-                    driver.Navigate().GoToUrl(page.value);
+                    webDriver.Navigate().GoToUrl(page.value);
 
-                    var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
+                    var wait = new WebDriverWait(webDriver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
 
                     // If no ID we just want to check for URL
                     if (String.IsNullOrEmpty(page.id))
@@ -234,9 +235,9 @@ namespace b2ctestcaserunner
                 }
                 catch (WebDriverTimeoutException)
                 {
-                    if (!driver.Url.Contains(page.value))
+                    if (!webDriver.Url.Contains(page.value))
                     {
-                        telemetryLog.TrackEvent("URL Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {driver.Url}");
+                        telemetryLog.TrackEvent("URL Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {webDriver.Url}");
                         telemetryLog.ConsoleLogger($"-------------\n>>> FIX THE URL {page.value}\n-------------");
                     }
                     else if (String.IsNullOrEmpty(page.id))
@@ -301,19 +302,19 @@ namespace b2ctestcaserunner
                 {
                     try
                     {
-                        while (driver.Url == prevURL)
+                        while (webDriver.Url == prevURL)
                             System.Threading.Thread.Sleep(100);
 
-                        driver.Navigate().GoToUrl(page.value);
+                        webDriver.Navigate().GoToUrl(page.value);
 
-                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
+                        var wait = new WebDriverWait(webDriver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                         wait.Until(webDriver => webDriver.Url.Contains(page.value));
                     }
                     catch (WebDriverTimeoutException)
                     {
-                        if (!driver.Url.Contains(page.value))
+                        if (!webDriver.Url.Contains(page.value))
                         {
-                            telemetryLog.TrackEvent("Url Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {driver.Url}");
+                            telemetryLog.TrackEvent("Url Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {webDriver.Url}");
                             throw new Exception("Test Failure");
                         }
                         else
@@ -328,11 +329,11 @@ namespace b2ctestcaserunner
                     }
                     continue;
                 }
-                prevURL = driver.Url;
+                prevURL = webDriver.Url;
 
                 try
                 {
-                    var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
+                    var wait = new WebDriverWait(webDriver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                     wait.Until(webDriver => webDriver.FindElements(By.Id(page.id)).Count > 0);
                 }
                 catch (WebDriverTimeoutException)
@@ -359,7 +360,7 @@ namespace b2ctestcaserunner
                     // Check that the element we are looking for is visible
                     try
                     {
-                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
+                        var wait = new WebDriverWait(webDriver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                         wait.Until(driver => driver.FindElement(By.Id(page.id)).Displayed);
                     }
                     catch (WebDriverTimeoutException)
@@ -378,8 +379,8 @@ namespace b2ctestcaserunner
                     try
                     {
                         // use javascript to clear the field in case there is already text present, still want to use send keys so as to trigger any attached events
-                        driver.ExecuteJavaScript($"$('#{page.id}').val('')");
-                        driver.FindElement(By.Id(page.id)).SendKeys(page.value);
+                        webDriver.ExecuteJavaScript($"$('#{page.id}').val('')");
+                        webDriver.FindElement(By.Id(page.id)).SendKeys(page.value);
                     }
                     catch (JavaScriptException jse)
                     {
@@ -396,7 +397,7 @@ namespace b2ctestcaserunner
                 {
                     try
                     {
-                        driver.FindElement(By.Id(page.id)).Click();
+                        webDriver.FindElement(By.Id(page.id)).Click();
                     }
                     catch (JavaScriptException jse)
                     {
@@ -413,7 +414,7 @@ namespace b2ctestcaserunner
                 {
                     try
                     {
-                        SelectElement valueSelector = new SelectElement(driver.FindElement(By.Id(page.id)));
+                        SelectElement valueSelector = new SelectElement(webDriver.FindElement(By.Id(page.id)));
                         valueSelector.SelectByValue(page.value);
                     }
                     catch (JavaScriptException jse)
@@ -426,7 +427,7 @@ namespace b2ctestcaserunner
                 {
                     try
                     {
-                        driver.ExecuteJavaScript($"$('#{page.id}').trigger('click')");
+                        webDriver.ExecuteJavaScript($"$('#{page.id}').trigger('click')");
                     }
                     catch (JavaScriptException jse)
                     {
@@ -442,7 +443,7 @@ namespace b2ctestcaserunner
                         case "otpEmail":
                             try
                             {
-                                var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
+                                var wait = new WebDriverWait(webDriver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                                 wait.Until(driver => driver.FindElement(By.Id("emailVerificationControl_but_verify_code")).Displayed);
                             }
                             catch (WebDriverTimeoutException)
@@ -466,14 +467,14 @@ namespace b2ctestcaserunner
                                 throw new Exception("Test Failure");
                             }
 
-                            string value = driver.FindElement(By.Id(page.id)).GetAttribute("value");
+                            string value = webDriver.FindElement(By.Id(page.id)).GetAttribute("value");
                             var otpCode = B2CMethods.GetEmailOTP(
                                 value,
                                 _keys["otpFunctionAppKey"], _keys["otpFunctionApp"],
                                 suiteSettings.TestConfiguration.OTP_Age).Result;
                             try
                             {
-                                driver.FindElement(By.Id(page.value)).SendKeys(otpCode);
+                                webDriver.FindElement(By.Id(page.value)).SendKeys(otpCode);
                             }
                             catch (NoSuchElementException)
                             {
@@ -484,11 +485,11 @@ namespace b2ctestcaserunner
                         case "newRandomUser":
                             emailAddress = B2CMethods.NewRandomUser(page.value);
                             telemetryLog.TrackEvent("information", "New User", $"Test {currentTestName}: New user ID: {emailAddress}");
-                            driver.FindElement(By.Id(page.id)).SendKeys(emailAddress);
+                            webDriver.FindElement(By.Id(page.id)).SendKeys(emailAddress);
                             break;
                         case "sessionUser":
                             emailAddress = sessionUser + page.value;
-                            driver.FindElement(By.Id(page.id)).SendKeys(emailAddress);
+                            webDriver.FindElement(By.Id(page.id)).SendKeys(emailAddress);
                             break;
                     }
                 }
@@ -496,7 +497,7 @@ namespace b2ctestcaserunner
                 {
                     try
                     {
-                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
+                        var wait = new WebDriverWait(webDriver, TimeSpan.FromSeconds(suiteSettings.TestConfiguration.timeOut));
                         // If no ID we just want to check for URL (preference is to also look for an id)
                         if (String.IsNullOrEmpty(page.id))
                             wait.Until(webDriver => webDriver.Url.Contains(page.value));
@@ -543,10 +544,10 @@ namespace b2ctestcaserunner
             telemetryLog.TrackEvent("B2CTestDriver Completed", "time", $"{DateTime.Now}");
             telemetryLog.Flush();
 
-            if (driver != null)
+            if (webDriver != null)
             {
-                driver.Quit();
-                driver = null;
+                webDriver.Quit();
+                webDriver = null;
             }
         }
     }
