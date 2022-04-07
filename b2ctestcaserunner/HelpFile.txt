@@ -16,3 +16,12 @@ SAMPLE FILE
   },
   "Tests": ["signUp", "signIn", "otp", "profileedit"]
 }
+
+
+
+A command line option is to specify the log file name
+This is done by adding LOGFILE: followed by the name of the log file
+
+For example, to create a log file named TestExecution.log use the following command line
+
+	b2ctestcaserunner.exe test.json LOGFILE:TestExecution.log
