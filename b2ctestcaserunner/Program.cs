@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using Tools;
 
 namespace b2ctestcaserunner
 {
@@ -13,7 +14,10 @@ namespace b2ctestcaserunner
             if (args.Length > 0)
             {
                 string containerName = "";
-                List<string> argList = ParseArgs(args, ref containerName);
+                string consoleLogFile = "";
+                List<string> argList = ParseArgs(args, ref containerName, ref consoleLogFile);
+                if (!string.IsNullOrEmpty(consoleLogFile))
+                    TelemetryLog.consoleFile = consoleLogFile;
 
                 foreach (string arg in argList)
                 {
@@ -37,9 +41,10 @@ namespace b2ctestcaserunner
         }
 
 
-        static List<string> ParseArgs(string[] args, ref string containerName)
+        static List<string> ParseArgs(string[] args, ref string containerName, ref string logFile)
         {
-            containerName = args.Where(a => a.Contains("container:")).FirstOrDefault();
+            containerName = args.Where(a => a.ToLower().Contains("container:")).FirstOrDefault();
+            logFile = args.Where(a => a.ToLower().Contains("logfile:")).FirstOrDefault();
 
             List<string> argList = args.ToList();
 
@@ -50,9 +55,18 @@ namespace b2ctestcaserunner
             else
             {
                 argList.Remove(containerName);
-                containerName = containerName.Replace("container:", "");
+                containerName = containerName.Substring(containerName.IndexOf(":") + 1);
             }
 
+            if (string.IsNullOrEmpty(logFile))
+            {
+                logFile = "";
+            }
+            else
+            {
+                argList.Remove(logFile);
+                logFile = logFile.Substring(logFile.IndexOf(":") + 1);
+            }
             return argList;
         }
     }
