@@ -20,7 +20,8 @@ namespace Tools
 
         public const string metricPass = "Pass";
         public const string metricFail = "Fail";
-        
+
+        string trackingGuid = Guid.NewGuid().ToString();
         static Dictionary<string, int> metrics = new Dictionary<string, int>();
 
 
@@ -63,7 +64,7 @@ namespace Tools
                 else
                     metrics.Add(metricName, metricValue);
             }
-            else
+            //else
             {
                 MetricTelemetry metricTelemetry = new MetricTelemetry(metricName, metricValue);
                 telemetryClient.TrackMetric(metricTelemetry);
@@ -73,11 +74,13 @@ namespace Tools
 
         public void TrackEvent(string eventId, Dictionary<string, string> eventProperties)
         {
+            eventProperties.Add("trackingId", trackingGuid);
+
             if (logToFile)
             {
                 ConsoleLogger( $"{eventId}:{JsonConvert.SerializeObject(eventProperties)}");
             }
-            else
+            //else
             {
                 telemetryClient.TrackEvent(eventId, eventProperties);
 
@@ -127,7 +130,7 @@ namespace Tools
                     ConsoleLogger( $"{eventId}: {propertyName} {propertyValue}");
                 }
             }
-            else
+            //else
             {
                 Dictionary<string, string> eventProperties = new Dictionary<string, string>();
                 eventProperties.Add(propertyName, propertyValue);
@@ -149,7 +152,7 @@ namespace Tools
                 if (metrics != null) details = details + "\n" + JsonConvert.SerializeObject(metrics);
                 ConsoleLogger( $"Exception thrown\n{exception.ToString()}\n{details}");
             }
-            else
+            //else
             {
                 telemetryClient.TrackException(exception, eventProperties, metrics);
             }
@@ -162,7 +165,7 @@ namespace Tools
             {
                 ConsoleLogger( $"Trace: {message}");
             }
-            else
+            //else
             {
                 telemetryClient.TrackTrace(message, SeverityLevel.Information);
             }
@@ -175,7 +178,7 @@ namespace Tools
             {
                 ConsoleLogger( $"exception: {message}");
             }
-            else
+            //else
             {
                 Dictionary<string, string> eventProperties = new Dictionary<string, string>();
                 eventProperties.Add("message", message);

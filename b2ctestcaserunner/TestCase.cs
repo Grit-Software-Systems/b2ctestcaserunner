@@ -20,7 +20,8 @@ namespace b2ctestcaserunner
         const string telemetryMetricPass = "Pass";
         const string telemetryMetricFail = "Fail";
         const string azureBlobSuitesDir = "testSuite";
-    
+
+        DateTime suiteStartTime = DateTime.Now;
         static string sessionUser = "testDriver" + DateTimeOffset.Now.ToUnixTimeSeconds();
 
         string workingDir = "";
@@ -160,7 +161,11 @@ namespace b2ctestcaserunner
         }
 
 
-        public void DoTests()
+        /// <summary>
+        /// run the tests
+        /// </summary>
+        /// <param name="testName">optional:runs only a single test</param>
+        public void DoTests(string testName = "")
         {
             if (suiteSettings.Tests.Length == 0)
             {
@@ -171,12 +176,14 @@ namespace b2ctestcaserunner
 
             foreach (string test in suiteSettings.Tests)
             {
-                ExecuteTest(test);
+                if (string.IsNullOrEmpty(testName) || (test.ToLower() == testName.ToLower()))
+                    ExecuteTest(test);
             }
         }
 
         public void ExecuteTest(string fileName)
         {
+            DateTime testStartTime = DateTime.Now;
             try
             {
                 currentTestName = fileName;
@@ -201,7 +208,15 @@ namespace b2ctestcaserunner
 
                 Execute(pages, fileName);
             }
-            catch { }
+            catch (Exception e)
+            {   // several failures throw exceptions
+                TimeSpan elapsed = DateTime.Now - testStartTime;
+                Dictionary<string, string> eventProperties = new Dictionary<string, string>();
+                eventProperties.Add("Result", $"{currentTestName} : " + "Failure");
+                eventProperties.Add("Test execution time", $"{elapsed.TotalSeconds:0.00}");
+                telemetryLog.TrackEvent("TestFail", eventProperties);
+                telemetryLog.TrackMetric(TelemetryLog.metricFail, 1);
+            }
 
             Cleanup();
         }
@@ -268,6 +283,9 @@ namespace b2ctestcaserunner
 
         public void Execute(List<Page> pages, string currentTestName)
         {
+            bool testSuccess = false;
+            DateTime testStartTime = DateTime.Now;
+
             string prevURL = "";
             string emailAddress = "";
             telemetryLog.TrackEvent("Test Started", "Test Name", currentTestName);
@@ -508,7 +526,7 @@ namespace b2ctestcaserunner
 
                         string suffix = string.IsNullOrEmpty(page.id) ? $"" : $"with element possessing ID: {page.id}";
                         telemetryLog.TrackEvent("information", "TestCaseComplete", $"Test {currentTestName}: Successfully landed on page: {page.value} {suffix}");
-                        telemetryLog.TrackMetric(TelemetryLog.metricPass, 1);
+                        testSuccess = true;
                     }
                     catch (WebDriverTimeoutException)
                     {
@@ -536,12 +554,21 @@ namespace b2ctestcaserunner
                 telemetryLog.ConsoleLogger("-------------------");
                 telemetryLog.TrackEvent("Test Failure", "Error", "Test case logic failure or you forgot to terminate the test.");
             }
+
+            TimeSpan elapsed = DateTime.Now - testStartTime;
+            Dictionary<string, string> eventProperties = new Dictionary<string, string>();
+            eventProperties.Add("Result", $"{currentTestName} : " + (testSuccess ? "Success":"Failure"));
+            eventProperties.Add("Test execution time", $"{elapsed.TotalSeconds:0.00}");
+            telemetryLog.TrackEvent(testSuccess ? "TestPass" : "TestFail", eventProperties);
+            telemetryLog.TrackMetric(testSuccess ? TelemetryLog.metricPass : TelemetryLog.metricFail, 1);
         }
 
 
         public void Cleanup()
         {
-            telemetryLog.TrackEvent("B2CTestDriver Completed", "time", $"{DateTime.Now}");
+            TimeSpan elapsed = DateTime.Now - suiteStartTime;
+            string msg = $"{elapsed.TotalSeconds:0.00} seconds";
+            telemetryLog.TrackEvent("Test Suite Completed", "Suite execution time", msg);
             telemetryLog.Flush();
 
             if (webDriver != null)

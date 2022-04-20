@@ -1,13 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace ParallelLoop
 {
     class Program
     {
+        static int threadCount = int.Parse(Config("threads", "1"));
+        static int iterations = int.Parse(Config("iterations", "1"));
+
         static string suiteName = "";
         static string appInsightsInstrumentationkey = "";
         static string testRunnerPath = "";
@@ -17,19 +22,25 @@ namespace ParallelLoop
         {
             ParseArgs(args);
 
-            int threadCount = int.Parse(Config("threads", "1"));
-            int iterations = int.Parse(Config("iterations", "1"));
-
             TestCases testCases = new TestCases();
+
+            string[] suites = suiteName.Split(',');
 
             for (int iter = 0; iter < iterations; iter++)
             {
-                testCases.Execute(
-                    testRunnerPath,
-                    threadCount,
-                    suiteName,
-                    appInsightsInstrumentationkey,
-                    true);
+                Parallel.ForEach(suites,
+                    new ParallelOptions { MaxDegreeOfParallelism = threadCount },
+                    suite =>   // comment out if using Single Threaded foreach
+                //foreach (string suite in suites)
+                {
+                    testCases.Execute(
+                        testRunnerPath,
+                        threadCount,
+                        suite,
+                        appInsightsInstrumentationkey,
+                        false);
+                }
+                );      // comment out if not using Parallel.ForEach
             }
         }
 
@@ -44,6 +55,15 @@ namespace ParallelLoop
             {
                 testRunnerPath = Directory.GetFiles(testRunnerPath, "b2ctestcaserunner.exe").FirstOrDefault();
             }
+
+            string value = "";
+            ProcessArg(args, "threadsPrefix", ref value);
+            if (!string.IsNullOrEmpty(value)) 
+                threadCount = int.Parse(value);    
+
+            ProcessArg(args, "iterationsPrefix", ref value);
+            if (!string.IsNullOrEmpty(value))
+                iterations = int.Parse(value);
         }
 
 
