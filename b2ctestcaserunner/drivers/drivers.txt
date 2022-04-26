@@ -1,0 +1,2 @@
+If you are having issues with ChromeDriver.exe or GeckoDriver.exe 
+please check the Requirements section of the readme file for the locations of the current drivers.
