@@ -1,25 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Text.Json;
 using System.IO;
 using Tools;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
-using System.Threading.Tasks;
 using OpenQA.Selenium.Support.UI;
 using OpenQA.Selenium.Support.Extensions;
 using System.Linq;
-using System.Net;
 using System.Windows;
 
 namespace b2ctestcaserunner
 {
     partial class TestCase
     {
-        const string telemetryMetricPass = "Pass";
-        const string telemetryMetricFail = "Fail";
         const string azureBlobSuitesDir = "testSuite";
 
         DateTime suiteStartTime = DateTime.Now;

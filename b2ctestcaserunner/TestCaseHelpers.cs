@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Dynamic;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Text.Json;
 using Tools;
 
@@ -54,6 +50,7 @@ namespace b2ctestcaserunner
             catch 
             {
                 telemetryLog.TrackEvent("File Failure", "Error", $"Unable to load file {fileName}");
+                telemetryLog.TrackMetric(TelemetryLog.metricFail, 1);
             }
             return text;
         }
