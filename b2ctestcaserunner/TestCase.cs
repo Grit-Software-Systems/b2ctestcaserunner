@@ -12,6 +12,7 @@ using OpenQA.Selenium.Support.UI;
 using OpenQA.Selenium.Support.Extensions;
 using System.Linq;
 using System.Net;
+using System.Diagnostics;
 
 namespace b2ctestcaserunner
 {
@@ -20,7 +21,10 @@ namespace b2ctestcaserunner
         const string telemetryMetricPass = "Pass";
         const string telemetryMetricFail = "Fail";
         const string azureBlobSuitesDir = "testSuite";
-    
+        const string correlationId = "correlationId";
+        const string duration = "duration";
+        const string batchCorrelationId = "batchCorrelationId";
+
         static string sessionUser = "testDriver" + DateTimeOffset.Now.ToUnixTimeSeconds();
 
         string workingDir = "";
@@ -35,10 +39,15 @@ namespace b2ctestcaserunner
         Dictionary<string, string> _keys;
         string currentTestName;
         string container;
+        string guid;
+        Dictionary<string, string> eventProperties = new Dictionary<string, string>();
 
 
-        public TestCase(string settingsFile, string containerName)
+        public TestCase(string settingsFile, string containerName, string guid, string parentGuid)
         {
+            this.guid = guid;
+            this.eventProperties.Add(correlationId, guid);
+            this.eventProperties.Add(batchCorrelationId, parentGuid);
             container = containerName;
             LoadGlobals(settingsFile);
         }
@@ -68,8 +77,7 @@ namespace b2ctestcaserunner
             telemetryLog = new TelemetryLog(instrumentationKey);
 
             telemetryLog.ConsoleLogger("--------------------------------------------------------");
-            telemetryLog.TrackEvent("B2CTestDriver Started", "time", DateTime.Now.ToString());
-            telemetryLog.TrackEvent("information", "browser", suiteSettings.TestConfiguration.Environment + "\n");
+            telemetryLog.TrackEvent("information - browser:"+ suiteSettings.TestConfiguration.Environment, this.eventProperties);
 
             if (invalidJsonInSettingsFile)
             {
@@ -270,7 +278,9 @@ namespace b2ctestcaserunner
         {
             string prevURL = "";
             string emailAddress = "";
-            telemetryLog.TrackEvent("Test Started", "Test Name", currentTestName);
+            Stopwatch sw = Stopwatch.StartNew();
+            sw.Start();
+            telemetryLog.TrackEvent("Test Started - test name: " + currentTestName, eventProperties);
             if(!string.IsNullOrEmpty(container))
                 telemetryLog.TrackEvent("BlobStorage", "Container Name", container);
 
@@ -344,7 +354,7 @@ namespace b2ctestcaserunner
                         { "URL", page.value },
                         { "Error", "Web Driver Timeout" }
                     };
-                    telemetryLog.TrackEvent("Test Failure", "Error", "WebDriver Timeout");
+                    telemetryLog.TrackEvent("Test Failure - WebDriver Timeout",this.eventProperties);
                     telemetryLog.ConsoleLogger("This usually happens with the incorrect input values, please refer the screenshot to find out what could have been wrong");
                     throw new Exception("Test Failure");
                 }
@@ -397,7 +407,11 @@ namespace b2ctestcaserunner
                 {
                     try
                     {
+                        Stopwatch stopwatch = new Stopwatch();
+                        stopwatch.Start();
                         webDriver.FindElement(By.Id(page.id)).Click();
+                        stopwatch.Stop();
+                        this.trackWithDuration("Navigation",stopwatch.ElapsedMilliseconds.ToString());
                     }
                     catch (JavaScriptException jse)
                     {
@@ -507,7 +521,8 @@ namespace b2ctestcaserunner
                         }
 
                         string suffix = string.IsNullOrEmpty(page.id) ? $"" : $"with element possessing ID: {page.id}";
-                        telemetryLog.TrackEvent("information", "TestCaseComplete", $"Test {currentTestName}: Successfully landed on page: {page.value} {suffix}");
+                        sw.Stop();
+                        this.trackWithDuration("Test Completed - test name: "+ currentTestName + "", sw.ElapsedMilliseconds.ToString());
                         telemetryLog.TrackMetric(TelemetryLog.metricPass, 1);
                     }
                     catch (WebDriverTimeoutException)
@@ -536,6 +551,13 @@ namespace b2ctestcaserunner
                 telemetryLog.ConsoleLogger("-------------------");
                 telemetryLog.TrackEvent("Test Failure", "Error", "Test case logic failure or you forgot to terminate the test.");
             }
+        }
+
+        private void trackWithDuration(String message,String ms)
+        {
+            this.eventProperties.Add(duration, ms);
+            telemetryLog.TrackEvent(message, this.eventProperties);
+            this.eventProperties.Remove(duration);
         }
 
 
