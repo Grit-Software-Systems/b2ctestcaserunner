@@ -1,0 +1,61 @@
+// To find the test started, completed, failed count
+customEvents
+| extend guid = tostring(customDimensions.correlationId)
+| extend parentguid = tostring(customDimensions.batchCorrelationId)
+| join kind=inner (
+    customEvents
+    | where name like 'starting with the test suite'
+    | sort by timestamp desc 
+    | extend parentguid = tostring(customDimensions.correlationId)
+    | limit 1
+) on  parentguid
+| where name like 'Test Started' or name like 'Test Failure' or name like 'Test Completed'
+| summarize count1=dcount(guid) by guid,name
+| summarize Total = sum(count1) by Result=name
+
+// To find the test failed guid 
+customEvents
+| extend guid = tostring(customDimensions.correlationId)
+| extend parentguid = tostring(customDimensions.batchCorrelationId)
+| join kind=inner (
+    customEvents
+    | where name like 'starting with the test suite'
+    | sort by timestamp desc 
+    | extend parentguid = tostring(customDimensions.correlationId)
+    | limit 1
+) on  parentguid
+| where name like 'Test Failure'// or name like 'Test Failure' or name like 'TestCaseComplete'
+| summarize Total=dcount(guid) by Guid=guid,Result=name
+
+
+// To find the time taken metrics
+ customEvents
+| extend guid = tostring(customDimensions.correlationId)
+| extend parentguid = tostring(customDimensions.batchCorrelationId)
+| join kind=inner (
+    customEvents
+    | where name like 'starting with the test suite'
+    | sort by timestamp desc 
+    | extend parentguid = tostring(customDimensions.correlationId)
+    | limit 1
+) on  parentguid
+| where name like 'Test Completed'
+| extend duration = tolong(customDimensions.duration)
+| summarize MaxTime = max(duration), MinTime = min(duration), Average = avg(duration), Median = percentile(duration,50)
+
+
+
+// To find the time taken metrics per navigation
+customEvents
+| extend guid = tostring(customDimensions.correlationId)
+| extend parentguid = tostring(customDimensions.batchCorrelationId)
+| extend duration = tolong(customDimensions.duration)
+| join kind=inner (
+    customEvents
+    | where name like 'starting with the test suite'
+    | sort by timestamp desc 
+    | extend parentguid = tostring(customDimensions.correlationId)
+    | limit 1
+) on  parentguid
+| where name like 'Navigation' 
+| summarize MaxTime = max(duration), MinTime = min(duration), Average = avg(duration), Median = percentile(duration,50)
