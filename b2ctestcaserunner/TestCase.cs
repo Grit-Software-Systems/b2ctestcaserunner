@@ -580,9 +580,9 @@ namespace b2ctestcaserunner
 
         private void trackWithDuration(String message,String ms)
         {
-            this.eventProperties.Add(duration, ms);
-            telemetryLog.TrackEvent(message, this.eventProperties);
-            this.eventProperties.Remove(duration);
+            Dictionary<string, string> properties = new Dictionary<string, string>(this.eventProperties);
+            properties.Add(duration, ms);
+            telemetryLog.TrackEvent(message, properties);
         }
 
         public void Cleanup()
