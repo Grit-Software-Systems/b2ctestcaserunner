@@ -39,11 +39,15 @@ namespace Tools
             {
                 this.telemetryClient = InitializeTelemetryClient(instrumentationKey);
             }
+
+            TrackEvent("AppStart", null);
+            DateTime startTime = DateTime.Now;
+            Flush();
         }
 
 
         private TelemetryClient InitializeTelemetryClient(string instrumentationKey)
-        {           
+        {
             var telemetryClient = new TelemetryClient(new TelemetryConfiguration(instrumentationKey)
             {
                 DisableTelemetry = false

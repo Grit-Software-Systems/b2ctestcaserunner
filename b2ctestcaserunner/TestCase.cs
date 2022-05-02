@@ -21,7 +21,7 @@ namespace b2ctestcaserunner
         static string sessionUser = "testDriver" + DateTimeOffset.Now.ToUnixTimeSeconds();
 
         string workingDir = "";
-        string driverPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "drivers");
+        string driverPath = AppDomain.CurrentDomain.BaseDirectory;
         string exeBasePath = AppDomain.CurrentDomain.BaseDirectory;
 
         string instrumentationKey = "";
@@ -63,6 +63,7 @@ namespace b2ctestcaserunner
 
             instrumentationKey = EnvVar("appInsightsInstrumentationKey");
             telemetryLog = new TelemetryLog(instrumentationKey);
+            Console.WriteLine($"using instrumentation key {instrumentationKey}");
 
             telemetryLog.ConsoleLogger("--------------------------------------------------------");
             telemetryLog.TrackEvent("B2CTestDriver Started", "time", DateTime.Now.ToString());
