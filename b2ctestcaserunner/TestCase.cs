@@ -539,7 +539,7 @@ namespace b2ctestcaserunner
                         string suffix = string.IsNullOrEmpty(page.id) ? $"" : $"with element possessing ID: {page.id}";
                         sw.Stop();
                         this.trackWithDuration("Test Completed - test name: "+ currentTestName + "", sw.ElapsedMilliseconds.ToString());
-                        telemetryLog.TrackMetric(TelemetryLog.metricPass, 1);
+                        testSuccess = true;
                     }
                     catch (WebDriverTimeoutException)
                     {
