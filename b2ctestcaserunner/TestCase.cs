@@ -139,7 +139,7 @@ namespace b2ctestcaserunner
                         webDriver.Manage().Window.Position = new System.Drawing.Point(screenWidth/3, 0); 
                         break;
                     default:
-                        telemetryLog.TrackEvent("exception", "browser environment", "Unrecognized Browser Environment.  Test Aborted.");
+                        telemetryLog.TrackEvent("exception", "browser environment", "Unrecognized Browser Environment.  Test Aborted.",this.eventProperties);
                         throw new Exception("Unrecognized Browser Environment!");
                 }
             }
@@ -205,7 +205,7 @@ namespace b2ctestcaserunner
 
                 if (pages.Count == 0)
                 {
-                    telemetryLog.TrackEvent("File Failure", "Error", $"Invalid json found in file {fileName}");
+                    telemetryLog.TrackEvent("File Failure", "Error", $"Invalid json found in file {fileName}",this.eventProperties);
                     telemetryLog.Flush();
                     return;
                 }
@@ -220,7 +220,7 @@ namespace b2ctestcaserunner
                 Dictionary<string, string> eventProperties = new Dictionary<string, string>();
                 eventProperties.Add("Result", $"{currentTestName} : " + "Failure");
                 eventProperties.Add("Test execution time", $"{elapsed.TotalSeconds:0.00}");
-                telemetryLog.TrackEvent("TestFail", eventProperties);
+                telemetryLog.TrackEvent("Test Failure", eventProperties);
                 telemetryLog.TrackMetric(TelemetryLog.metricFail, 1);
             }
 
@@ -258,29 +258,29 @@ namespace b2ctestcaserunner
                 {
                     if (!webDriver.Url.Contains(page.value))
                     {
-                        telemetryLog.TrackEvent("URL Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {webDriver.Url}");
+                        telemetryLog.TrackEvent("URL Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {webDriver.Url}", this.eventProperties);
                         telemetryLog.ConsoleLogger($"-------------\n>>> FIX THE URL {page.value}\n-------------");
                     }
                     else if (String.IsNullOrEmpty(page.id))
                     {
-                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.");
+                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.",this.eventProperties);
                     }
                     else
                     {
-                        telemetryLog.TrackEvent("Visible Element", "Error", $"Test {currentTestName}: URL {page.value} did not load a visible element {page.id} within the {suiteSettings.TestConfiguration.TimeOut} second time period.");
+                        telemetryLog.TrackEvent("Visible Element", "Error", $"Test {currentTestName}: URL {page.value} did not load a visible element {page.id} within the {suiteSettings.TestConfiguration.TimeOut} second time period.",this.eventProperties);
                         telemetryLog.ConsoleLogger($"-------------\n>>> FIX THE ELEMENT NAME {page.id}\n-------------");
                     }
                     throw new Exception("WebDriver Timeout Exception");
                 }
                 catch (Exception ex)
                 {
-                    telemetryLog.TrackEvent("Exception Thrown", "Exception", ex.ToString());
+                    telemetryLog.TrackEvent("Exception Thrown", "Exception", ex.ToString(),this.eventProperties);
                     throw ex;
                 }
             }
             else
             {
-                telemetryLog.TrackEvent("Invalid test", "Invalid test", $"{currentTestName}: Invalid test. There was no navigation to a page to start.");
+                telemetryLog.TrackEvent("Invalid test", "Invalid test", $"{currentTestName}: Invalid test. There was no navigation to a page to start.",this.eventProperties);
             }
 
             return isSuccess;
@@ -296,9 +296,9 @@ namespace b2ctestcaserunner
             string emailAddress = "";
             Stopwatch sw = Stopwatch.StartNew();
             sw.Start();
-            telemetryLog.TrackEvent("Test Started - test name: " + currentTestName, this.eventProperties);
+            telemetryLog.TrackEvent("Test Started - test name: " + currentTestName,this.eventProperties);
             if(!string.IsNullOrEmpty(container))
-                telemetryLog.TrackEvent("BlobStorage", "Container Name", container);
+                telemetryLog.TrackEvent("BlobStorage", "Container Name", container,this.eventProperties);
 
             int iStart = 0;
             for (int i = 0; i < pages.Count; i++)
@@ -340,12 +340,12 @@ namespace b2ctestcaserunner
                     {
                         if (!webDriver.Url.Contains(page.value))
                         {
-                            telemetryLog.TrackEvent("Url Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {webDriver.Url}");
+                            telemetryLog.TrackEvent("Url Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {webDriver.Url}",this.eventProperties);
                             throw new Exception("Test Failure");
                         }
                         else
                         {
-                            telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.");
+                            telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.",this.eventProperties);
                             throw new Exception("Test Failure");
                         }
                     }
@@ -376,7 +376,7 @@ namespace b2ctestcaserunner
                 }
                 catch (Exception ex)
                 {
-                    telemetryLog.TrackEvent("Exception Thrown", "exception", ex.ToString());
+                    telemetryLog.TrackEvent("Exception Thrown", "exception", ex.ToString(),this.eventProperties);
                     throw new Exception(ex.ToString());
                 }
 
@@ -391,7 +391,7 @@ namespace b2ctestcaserunner
                     }
                     catch (WebDriverTimeoutException)
                     {
-                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: Next element {page.id} was not completed within the timeout period of {suiteSettings.TestConfiguration.TimeOut} second(s).");
+                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: Next element {page.id} was not completed within the timeout period of {suiteSettings.TestConfiguration.TimeOut} second(s).",this.eventProperties);
                         throw new Exception("WebDriver Timeout Exception");
                     }
                     catch (Exception ex)
@@ -410,7 +410,7 @@ namespace b2ctestcaserunner
                     }
                     catch (JavaScriptException jse)
                     {
-                        telemetryLog.TrackEvent("Input failure", "Error", $"Test {currentTestName}: Input text field with ID: {page.id} was not visible on the page.");
+                        telemetryLog.TrackEvent("Input failure", "Error", $"Test {currentTestName}: Input text field with ID: {page.id} was not visible on the page.",this.eventProperties);
                         throw jse;
                     }
                     catch (Exception ex)
@@ -431,7 +431,7 @@ namespace b2ctestcaserunner
                     }
                     catch (JavaScriptException jse)
                     {
-                        telemetryLog.TrackEvent("Button Failure", "Error", $"Test {currentTestName}: Button with ID: {page.id} was not visible on the page.");
+                        telemetryLog.TrackEvent("Button Failure", "Error", $"Test {currentTestName}: Button with ID: {page.id} was not visible on the page.",this.eventProperties);
                         throw jse;
                     }
                     catch (Exception ex)
@@ -449,7 +449,7 @@ namespace b2ctestcaserunner
                     }
                     catch (JavaScriptException jse)
                     {
-                        telemetryLog.TrackEvent("Dropdown Failure", "Error", $"Dropdown with ID: {page.id} was not visible on the page.");
+                        telemetryLog.TrackEvent("Dropdown Failure", "Error", $"Dropdown with ID: {page.id} was not visible on the page.",this.eventProperties);
                         throw jse;
                     }
                 }
@@ -461,7 +461,7 @@ namespace b2ctestcaserunner
                     }
                     catch (JavaScriptException jse)
                     {
-                        telemetryLog.TrackEvent("Checkbox Failure", "Error", $"Test {currentTestName}: Checkbox with ID: {page.id} was not visible on the page.");
+                        telemetryLog.TrackEvent("Checkbox Failure", "Error", $"Test {currentTestName}: Checkbox with ID: {page.id} was not visible on the page.",this.eventProperties);
                         throw jse;
                     }
                 }
@@ -478,22 +478,22 @@ namespace b2ctestcaserunner
                             }
                             catch (WebDriverTimeoutException)
                             {
-                                telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: Next element emailVerificationControl_but_verify_code was not completed within the timeout period of {suiteSettings.TestConfiguration.TimeOut} second(s).");
+                                telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: Next element emailVerificationControl_but_verify_code was not completed within the timeout period of {suiteSettings.TestConfiguration.TimeOut} second(s).",this.eventProperties);
                                 throw new Exception("Test Failure");
                             }
                             if (page.id == "" && page.value == "")
                             {
-                                telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires an id and a value.");
+                                telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires an id and a value.",this.eventProperties);
                                 throw new Exception("Test Failure");
                             }
                             else if (page.id == "")
                             {
-                                telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires an id.");
+                                telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires an id.",this.eventProperties);
                                 throw new Exception("Test Failure");
                             }
                             else if (page.value == "")
                             {
-                                telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires a value.");
+                                telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function requires a value.",this.eventProperties);
                                 throw new Exception("Test Failure");
                             }
 
@@ -508,7 +508,7 @@ namespace b2ctestcaserunner
                             }
                             catch (NoSuchElementException)
                             {
-                                telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function value does not match the id of a visible element on the page.");
+                                telemetryLog.TrackEvent("Test Failure", "Error", $"Test {currentTestName}: otpEmail function value does not match the id of a visible element on the page.",this.eventProperties);
                                 throw new Exception("Test Failure");
                             }
                             break;
@@ -543,7 +543,7 @@ namespace b2ctestcaserunner
                     }
                     catch (WebDriverTimeoutException)
                     {
-                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.value} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.");
+                        telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.value} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.",this.eventProperties);
                         throw new Exception("Test Failure");
                     }
                     catch (Exception ex)
@@ -565,7 +565,7 @@ namespace b2ctestcaserunner
                 telemetryLog.ConsoleLogger("-------------------");
                 telemetryLog.ConsoleLogger($">>> test file should include a line       \"inputType\": \"testCaseComplete\",");
                 telemetryLog.ConsoleLogger("-------------------");
-                telemetryLog.TrackEvent("Test Failure", "Error", "Test case logic failure or you forgot to terminate the test.");
+                telemetryLog.TrackEvent("Test Failure", "Error", "Test case logic failure or you forgot to terminate the test.",this.eventProperties);
             }
         
 

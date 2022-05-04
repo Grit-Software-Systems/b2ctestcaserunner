@@ -139,6 +139,60 @@ namespace Tools
             }
         }
 
+        public void TrackEvent(string eventId, string propertyName, string propertyValue, Dictionary<string, string> eventProperties)
+        {
+            if (logToFile)
+            {
+                if (propertyName == "Error")
+                {
+                    TrackMetric(metricFail, 1);
+                    ConsoleLogger($"{eventId}: {propertyName} {propertyValue}");
+
+                    try
+                    {
+                        string fileName = $"ScreenShot.{DateTime.Now.ToString("MMdd.HHmm.ss.ff")}.png";
+                        Screenshot ss = ((ITakesScreenshot)webDriver).GetScreenshot();
+                        ss.SaveAsFile(fileName);
+                        ConsoleLogger($"{eventId}: screenshot name {fileName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.ToString());
+                    }
+                }
+                else if (eventId.Contains("assert"))
+                {
+                    ConsoleLogger($"Status: {eventId.Replace("assert ", "")}");
+                }
+                else if (eventId.Contains("information"))
+                {
+                    string value = propertyName == "browser" ? $"Browser: {propertyValue}" : propertyValue;
+                    ConsoleLogger($"{value}");
+                }
+                else if (eventId.Contains("exception"))
+                {
+                    ConsoleLogger($"{propertyValue}");
+                }
+                else
+                {
+                    ConsoleLogger($"{eventId}: {propertyName} {propertyValue}");
+                }
+            }
+            else
+            {
+                if (eventProperties == null)
+                {
+                    Dictionary<string, string> properties = new Dictionary<string, string>();
+                    properties.Add(propertyName, propertyValue);
+                    TrackEvent(eventId, properties);
+                }else
+                {
+                    TrackEvent(eventId + propertyName +":"+propertyValue, eventProperties);
+                }
+
+            }
+        }
+
 
         public void TrackException(Exception exception, Dictionary<string, string> eventProperties = null, Dictionary<string, double> metrics = null)
         {
