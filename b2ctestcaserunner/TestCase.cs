@@ -260,21 +260,31 @@ namespace b2ctestcaserunner
                     {
                         telemetryLog.TrackEvent("URL Failure", "Error", $"Test {currentTestName}: Expected URL {page.value}, but current URL is {webDriver.Url}", this.eventProperties);
                         telemetryLog.ConsoleLogger($"-------------\n>>> FIX THE URL {page.value}\n-------------");
+                        Console.WriteLine($"Something went wrong, check the logs");
                     }
                     else if (String.IsNullOrEmpty(page.id))
                     {
                         telemetryLog.TrackEvent("Timeout Failure", "Error", $"Test {currentTestName}: URL {page.id} did not load within the {suiteSettings.TestConfiguration.TimeOut} second time period.",this.eventProperties);
+                        Console.WriteLine($"Something went wrong, check the logs");
                     }
                     else
                     {
                         telemetryLog.TrackEvent("Visible Element", "Error", $"Test {currentTestName}: URL {page.value} did not load a visible element {page.id} within the {suiteSettings.TestConfiguration.TimeOut} second time period.",this.eventProperties);
                         telemetryLog.ConsoleLogger($"-------------\n>>> FIX THE ELEMENT NAME {page.id}\n-------------");
+                        Console.WriteLine($"Something went wrong, check the logs");
                     }
                     throw new Exception("WebDriver Timeout Exception");
+                }
+                catch (WebDriverArgumentException ex){
+                    telemetryLog.TrackEvent("Argument Exception", "Error", ex.ToString(),this.eventProperties);
+                    telemetryLog.ConsoleLogger($"-------------\n>>> Argument Exception! {page.value} is invalid or contains incorrectly formated data. Bad input data such as a url with spaces or gremlins can cause this. \n-------------");
+                    Console.WriteLine($"Something went wrong, check the logs");
+                    throw ex;
                 }
                 catch (Exception ex)
                 {
                     telemetryLog.TrackEvent("Exception Thrown", "Exception", ex.ToString(),this.eventProperties);
+                    Console.WriteLine($"Something went wrong, check the logs");
                     throw ex;
                 }
             }
